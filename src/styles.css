@@ -97,7 +97,7 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 .payment-history span, .report-line span { color: #716b67; font-size: .88rem; }
 .report-orders { display: grid; gap: 8px; }
 select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; background: #fff; }
-@media print { body { background: #fff; } .topbar, .tabs, .report-actions, .primary-button, .secondary-button, label { display: none !important; } .app-shell { max-width: none; padding: 0; } .report-orders, .metric { box-shadow: none; break-inside: avoid; } }
+@media print { body { background: #fff; } .sidebar, .topbar, .tabs, .report-actions, .primary-button, .secondary-button, label { display: none !important; } .app-shell { display: block; width: auto; max-width: none; padding: 0; } .report-orders, .metric { box-shadow: none; break-inside: avoid; } }
 @media (min-width: 700px) { .dialog-backdrop { place-items: center; } .dialog { border-radius: 24px; } }
 @media (max-width: 760px) { .app-shell { display: block; padding: 18px 16px 32px; } .sidebar { position: static; gap: 14px; margin-bottom: 22px; } .brand-link { margin-left: 2px; } .tabs { flex-direction: row; overflow-x: auto; padding-bottom: 3px; } .tabs .tab { width: auto; } .main-area { gap: 16px; } }
 @media (max-width: 440px) { .app-shell { padding-inline: 14px; } .profile-chip span { display: none; } .metric-grid { grid-template-columns: 1fr; } .tab { flex: 1; justify-content: center; } .tab span { font-size: .82rem; } .account-row { align-items: flex-start; flex-direction: column; } .account-row .secondary-button { width: 100%; } }
