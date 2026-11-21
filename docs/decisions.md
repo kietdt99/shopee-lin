@@ -20,3 +20,15 @@ Neither user is created manually in the Supabase dashboard. Passwordless first s
 
 A Gmail plus-alias is a third allowlisted identity with the viewer role. It delivers to the Admin inbox, while Supabase treats it as an independent account for testing the Viewer experience.
 
+## 2026-11-21 — Legacy date normalization
+
+During the one-time Excel import, date cells parsed as `mm/dd/yyyy` are normalized to `dd/mm/yyyy`, matching the Vietnamese billing cycles and the confirmed source convention.
+
+## 2026-11-21 — Historical debt sign convention
+
+Purchases and received payments are separate positive records. A signed ledger entry represents opening credit or a historical adjustment; the initial 5,000,000 VND is a -5,000,000 VND debt offset. Imported payment allocations are assigned oldest outstanding order first. The import must reconcile to 2,999,619 VND Shopee debt and 18,000,000 VND S25U remaining.
+
+## 2026-11-21 — Cycle reports and exports
+
+Cycles use the ending month label for a 21st-to-20th range. Closing stores a read-only snapshot; only Admin may reopen. Reports export an Excel-compatible workbook and PDF via the browser print dialog.
+
