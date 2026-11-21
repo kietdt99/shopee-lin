@@ -79,6 +79,9 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 - [ ] Partial payment leaves the relevant order unpaid with the correct remaining amount; exact settlement marks it paid.
 - [ ] Zero, negative, decimal, or over-capacity payment input is rejected without writing partial records.
 - [ ] Cancelling a fully unpaid order follows the delete confirmation path. Cancelling a paid or partially allocated order follows the cancellation/refund path; refund cannot exceed received allocations.
+- [ ] Before applying `20261121_z_serialize_order_financial_rpcs.sql`, audit existing refund ledger rows for duplicates; the migration prevents new duplicates but does not reconcile historical entries.
+- [ ] After applying the migration, call `cancel_order` twice for the same paid order; the second call must fail and must not add another refund ledger entry.
+- [ ] Verify concurrent payment and cancellation on the same order serialize safely: no allocation is attached after cancellation and no refund calculation omits an already committed allocation. Exercise cycle close racing cancellation, and cycle close racing a payment whose `paid_at` is in that cycle, when live QA supports concurrency testing.
 - [ ] Cancelled/refunded orders display the right state and do not inflate purchase totals. Verify a zero-refund and a valid partial/full refund case.
 - [ ] Orders in a closed cycle cannot be added, edited, deleted, or moved by bypassing the UI.
 

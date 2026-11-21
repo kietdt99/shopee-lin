@@ -22,4 +22,6 @@
 - [x] Complete one-time import guide; keep this plan/decision notes current.
 - [x] Add Playwright desktop/mobile Chromium smoke tests, a QA test plan, and PR quality workflow using isolated mocked Supabase requests.
 - [x] Expand Playwright E2E coverage for order create/edit/delete, multi-order payment and excess rejection, 20th/21st plus year rollover, cancellation/refund, selected-cycle Excel export, print layout, and self display-name editing. Retain live Supabase RLS/Auth/ledger checks as manual release gates.
+- [x] Serialize payment allocation and cancellation RPCs with cycle-before-order locks, including the payment-date cycle; reject repeated cancellation before adding another refund entry.
+- [ ] Apply `supabase/migrations/20261121_z_serialize_order_financial_rpcs.sql` to Supabase; audit existing refund entries and verify repeated/concurrent payment-cancellation calls do not duplicate or overwrite ledger state.
 

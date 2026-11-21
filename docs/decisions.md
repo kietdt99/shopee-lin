@@ -52,3 +52,7 @@ Cycles use the ending month label for a 21st-to-20th range. Closing stores a rea
 
 Use Shopee orange as the app's accent color with white cards and neutral gray backgrounds/text. Keep the app's own compact layout and identity rather than copying Shopee's full interface or logo.
 
+## 2026-11-21 — Serialize order financial writes
+
+`record_order_payment` and `cancel_order` lock billing cycles before order rows in a stable order. Payment allocation locks both the selected orders' cycles and the cycle(s) containing `p_paid_at`, because reports include payments by paid date. This serializes payment allocation with cancellation and cycle close. `cancel_order` also rejects an already-cancelled order before writing a refund adjustment, preventing concurrent or repeated calls from recording duplicate refunds. Apply the migration before relying on these guards in Supabase.
+

@@ -5,6 +5,8 @@
 - Playwright E2E smoke tests run with `pnpm test:e2e` using isolated fake Supabase URLs and network mocks. Desktop and mobile Chromium coverage includes login errors, Admin recovery-link UI, Viewer read-only navigation, reports/installments/QR, horizontal overflow, self display-name editing, Admin order create/edit/delete with 20th/21st and year-rollover cycle assignment, partial payment across multiple orders with over-allocation rejection, paid-order cancellation/refund, Excel-compatible export content, and print action/layout. Tests do not prove live RLS, real Auth token behavior, or persisted ledger integrity; see `docs/test-plan.md` for separate release QA.
 
 - Supabase project URL must be the project root URL, not the `/rest/v1/` endpoint.
+- `20261121_z_serialize_order_financial_rpcs.sql` replaces `record_order_payment` and `cancel_order`; both lock billing cycles before order rows to serialize payment/cancellation/cycle-close work. Payment allocation locks both selected orders' cycles and the cycle containing `p_paid_at`, then rechecks the order-to-cycle mapping. `cancel_order` rejects already-cancelled orders before adding a refund. Production behavior is not updated until this migration is applied.
+- The migration prevents new duplicate refunds but does not reconcile refund entries that may already exist; audit existing refund ledger rows separately when applying it.
 - Use only the Supabase publishable key in the browser. Never use a secret key in this application.
 - Historical Excel dates are mixed between text and spreadsheet date cells. Import needs a review step before data is marked final.
 - The initial schema is already applied. Apply `supabase/migrations/20261121_allowlisted_profiles.sql` before either user first signs in.
