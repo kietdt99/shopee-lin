@@ -16,29 +16,32 @@ Default display names are **Bé Kịt Thần Kỳ**, **Tester Quèn**, and **Bé
 
 ## 3. Configure Auth
 
-- In **Authentication → URL Configuration**, add the local URL used for development and the final GitHub Pages URL as redirect URLs.
+- `supabase/config.toml` declares the production GitHub Pages site URL, local development callback patterns (`localhost` and `127.0.0.1` on port 5173), the Pages app-path callback pattern, and the 300-second Email OTP expiry.
+- Use a short-lived project-scoped CLI token with Auth configuration and Edge Functions access. Review `supabase config diff --remote=wrcaejfcifbvmzcuukrd` before pushing; preserve undeclared remote settings and verify the diff contains only the intended site URL, redirect allowlist, and OTP expiry updates.
+- Push the reviewed configuration with `supabase config push --remote=wrcaejfcifbvmzcuukrd`. Then confirm the deployed Auth URL Configuration and OTP expiry in Supabase.
 - The database allowlist rejects every other email address, even while Supabase sign-ups remain enabled for the three approved identities.
-- To support Admin-assisted resets, set Auth **Email OTP expiration** to `300` seconds. This is a project-wide setting and also shortens activation, password recovery, and other Auth email links. The repository's `supabase/config.toml` declares this value; use the CLI config push command below and verify the diff before applying it.
+- The 300-second Email OTP expiry is project-wide and also shortens activation, password recovery, and other Auth email links.
 
 ## 4. Admin-assisted password recovery
 
 For a provisioned Viewer account, Admin can generate a single-use recovery link from the app. Supabase generates the link without sending email; the Viewer opens it and chooses a new password. Treat the link as a bearer credential and share it privately. The five-minute expiry is only in effect after the global `300`-second Auth setting above has been applied.
 
-Create a short-lived, project-scoped Supabase CLI profile with the permissions required by `config push` and Edge Function deploy: Auth config read/write plus project admin write; Edge Functions read/write; and the read access listed by `supabase config push --help` (database config/read/SSL/network, infra add-ons, Data API, Realtime, Storage, project and production branch read).
+Create a short-lived, project-scoped Supabase CLI credential with the permissions required by `config push` and Edge Function deploy: Auth config read/write plus project admin write; Edge Functions read/write; and the read access listed by `supabase config push --help` (database config/read/SSL/network, infra add-ons, Data API, Realtime, Storage, project and production branch read).
+Store the scoped token in the Supabase CLI credential store with `supabase login --name shopee-admin-recovery --token ...`. Subsequent CLI commands use the stored credential; `--profile` is a different CLI setting and does not select a token by name.
 
 ```powershell
 $cli = ".\node_modules\.bin\supabase-cli\supabase.exe"
-& $cli config diff --remote=wrcaejfcifbvmzcuukrd --profile shopee-admin-recovery
+& $cli config diff --remote=wrcaejfcifbvmzcuukrd
 ```
 
-Inspect that diff and confirm the only Auth change is OTP expiry at 300 seconds. Then run these separately:
+Inspect that diff and confirm the Auth changes are limited to the intended site URL, redirect allowlist, and OTP expiry at 300 seconds. The project-wide expiry also shortens activation and self-service recovery links. Then run these separately:
 
 ```powershell
-& $cli config push --remote=wrcaejfcifbvmzcuukrd --profile shopee-admin-recovery --yes
+& $cli config push --remote=wrcaejfcifbvmzcuukrd --yes
 ```
 
 ```powershell
-& $cli functions deploy admin-reset-password-link --remote=wrcaejfcifbvmzcuukrd --profile shopee-admin-recovery --use-api
+& $cli functions deploy admin-reset-password-link --remote=wrcaejfcifbvmzcuukrd --use-api
 ```
 
 Do not put a Supabase secret key in the browser or repository; the Edge Function uses Supabase's server-injected service-role environment variable.

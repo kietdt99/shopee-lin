@@ -1,5 +1,13 @@
 project_id = "wrcaejfcifbvmzcuukrd"
 
+[auth]
+site_url = "https://kietdt99.github.io/shopee-lin/"
+additional_redirect_urls = [
+  "http://127.0.0.1:5173/**",
+  "http://localhost:5173/**",
+  "https://kietdt99.github.io/shopee-lin/**",
+]
+
 [auth.email]
 otp_expiry = 300
 
