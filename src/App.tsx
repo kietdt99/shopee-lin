@@ -281,8 +281,8 @@ function SidebarProfile({ profile, onEdit, onSignOut }: { profile: Profile; onEd
     <img className="sidebar-avatar" src={avatarUrl || defaultAvatar} alt={`Ảnh đại diện ${profile.full_name}`} />
     <strong className="sidebar-profile-name">{profile.full_name}</strong>
     <div className="sidebar-profile-actions">
-      <button className="sidebar-action" onClick={onEdit}><Pencil size={16} />Cập Nhật Trang Cá Nhân</button>
-      <button className="sidebar-action" onClick={onSignOut}><LogOut size={16} />Đăng Xuất</button>
+      <button className="sidebar-action sidebar-action-profile" aria-label="Hồ Sơ" onClick={onEdit}><Pencil size={15} />Hồ Sơ</button>
+      <button className="sidebar-action" aria-label="Đăng Xuất" onClick={onSignOut}><LogOut size={15} />Đăng Xuất</button>
     </div>
   </section>
 }
