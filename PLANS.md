@@ -21,7 +21,7 @@
 - [ ] Configure GitHub Pages and Actions variables, cut immutable `release/v0.1.0`, deploy and verify production, then tag `v0.1.0`.
 - [x] Complete one-time import guide; keep this plan/decision notes current.
 - [x] Add Playwright desktop/mobile Chromium smoke tests, a QA test plan, and PR quality workflow using isolated mocked Supabase requests.
-- [x] Expand Playwright E2E coverage for order create/edit/delete, multi-order payment and excess rejection, 20th/21st plus year rollover, cancellation/refund, selected-cycle Excel export, print layout, and self display-name editing. Retain live Supabase RLS/Auth/ledger checks as manual release gates.
+- [x] Expand Playwright E2E coverage for order create/edit/delete, multi-order payment and excess rejection, 20th/21st plus year rollover, cancellation/refund, cycle close/reopen UI with modeled snapshot and downstream-opening restoration, selected-cycle Excel export, print layout, and self display-name editing. Retain live Supabase RLS/Auth/ledger checks as manual release gates.
 - [x] Serialize payment allocation and cancellation RPCs with cycle-before-order locks, including the payment-date cycle; reject repeated cancellation before adding another refund entry.
 - [x] Apply `supabase/migrations/20261121_z_serialize_order_financial_rpcs.sql` to Supabase; audit found zero prior refund rows. A temporary live RPC smoke test verified payment allocation and duplicate-cancellation rejection, and confirmed temporary rows were cleaned up.
 - [x] Run a two-request payment/cancellation concurrency check; final synthetic state had one allocation and a cancelled order, and all test rows were removed.

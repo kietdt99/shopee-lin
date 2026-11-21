@@ -227,6 +227,49 @@ test('Admin exports the selected cycle as an Excel-compatible report', async ({ 
   expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
 })
 
+test('Admin closes a cycle with a balance snapshot and reopens it restoring the next opening balance', async ({ page, expectNoHorizontalOverflow }) => {
+  const may: MockCycle = { ...mayCycle, opening_balance: 100_000 }
+  const june: MockCycle = { ...juneCycle, opening_balance: 42_000 }
+  const order: MockOrder = { id: 'order-close-may', description: 'May close test order', placed_at: '2026-05-19', amount: 250_000, status: 'unpaid', billing_cycle_id: may.id }
+  const payment = { id: 'payment-close-may', paid_at: '2026-05-20', amount: 75_000, note: 'Test payment' }
+  const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [may, june], payments: [payment] })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Báo cáo' }).click()
+  await page.getByLabel('Kỳ sổ').selectOption(may.id)
+  await expectNoHorizontalOverflow()
+
+  await expect(page.getByText('Còn lại theo kỳ').locator('..').getByText('275.000 ₫')).toBeVisible()
+  await page.getByRole('button', { name: 'Khóa sổ kỳ này' }).click()
+
+  await expect(page.getByRole('button', { name: 'Mở khóa kỳ' })).toBeVisible()
+  await expect(page.getByText('Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.')).toBeVisible()
+  await expect(page.getByText('Còn lại theo kỳ').locator('..').getByText('275.000 ₫')).toBeVisible()
+  expect(mock.requests.find((request) => request.path === '/rest/v1/rpc/close_billing_cycle')?.body).toEqual({ p_cycle_id: may.id })
+  expect(mock.closings).toEqual([{
+    billing_cycle_id: may.id,
+    opening_balance: 100_000,
+    purchase_total: 250_000,
+    payment_total: 75_000,
+    adjustment_total: 0,
+    closing_balance: 275_000,
+    next_opening_before: 42_000,
+  }])
+  expect(mock.cycles.find((cycle) => cycle.id === june.id)?.opening_balance).toBe(275_000)
+  await page.getByLabel('Kỳ sổ').selectOption(june.id)
+  await expect(page.getByText('Dư đầu kỳ').locator('..').getByText('275.000 ₫')).toBeVisible()
+  await page.getByLabel('Kỳ sổ').selectOption(may.id)
+
+  await page.getByRole('button', { name: 'Mở khóa kỳ' }).click()
+  await expect(page.getByRole('button', { name: 'Khóa sổ kỳ này' })).toBeVisible()
+  await expect(page.getByText('Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.')).toHaveCount(0)
+  expect(mock.requests.find((request) => request.path === '/rest/v1/rpc/reopen_billing_cycle')?.body).toEqual({ p_cycle_id: may.id })
+  expect(mock.closings).toHaveLength(0)
+
+  await page.getByLabel('Kỳ sổ').selectOption(june.id)
+  await expect(page.getByText('Dư đầu kỳ').locator('..').getByText('42.000 ₫')).toBeVisible()
+  await expectNoHorizontalOverflow()
+})
+
 test('Print report action invokes print and print media hides app navigation/actions', async ({ page }) => {
   await mockSupabase(page, 'admin', { cycles: [mayCycle] })
   await signIn(page, 'admin')
