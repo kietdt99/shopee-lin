@@ -7,7 +7,10 @@
 - [x] Build role-aware application shell; switch routine login to email/password with one-time email activation and password recovery.
 - [x] Implement Admin account management with a one-time recovery link for provisioned Viewer accounts. Production `admin-reset-password-link` is deployed with JWT verification enabled; Auth email OTP expiry is configured to 300 seconds. Live authorized-link, single-use, and expiry tests remain open.
 - [x] Add per-user display name editing with constrained self-only update RPC.
+- [x] Add a Hồ Sơ dialog with private per-user avatar upload, editable display name, and read-only email. Migration is prepared locally; test coverage and Supabase application remain pending.
 - [x] Implement Admin order create/edit/delete and cancellation/refund flow.
+- [x] Replace hard delete with reversible order soft-delete/restore; retain reopened cycle snapshots; remove database DELETE access for all app business tables. Code and migration are prepared on `feature/orders-management`; local PostgreSQL validation and authenticated API checks remain pending.
+- [x] Redesign Orders as a responsive table with explicit cycle labels, manual-submit search, multi-select cycle/status filters, safe multi-item descriptions, and optional Shopee URL viewing. Playwright coverage is being updated on `test/orders-management`.
 - [x] Assign orders to 21st–20th cycles; implement cycle close, reports, and Admin reopen with database guards.
 - [x] Record lump payments and allocate across selected orders, including partial allocations.
 - [x] Add installment plan/payment entry and history.

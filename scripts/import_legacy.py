@@ -41,6 +41,28 @@ def stable_id(kind, *parts):
     return str(uuid.uuid5(NAMESPACE, "|".join([kind, *map(str, parts)])))
 
 
+def normalize_description(value):
+    """Normalize line contents while preserving blank lines between item blocks."""
+    lines = []
+    for line in str(value).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        normalized = " ".join(line.split())
+        if normalized:
+            lines.append(normalized)
+        elif lines and lines[-1] != "":
+            # Keep one empty line, so item blocks remain separated by `\n\n`.
+            lines.append("")
+    while lines and not lines[0]:
+        lines.pop(0)
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
+def canonical_description(value):
+    """Use whitespace-insensitive text for ordering and stable order IDs."""
+    return " ".join(str(value).split())
+
+
 def main():
     if len(sys.argv) != 2:
         raise SystemExit("Usage: python scripts/import_legacy.py <workbook.xlsx>")
@@ -58,7 +80,7 @@ def main():
             if not isinstance(seq, (int, float)) or not isinstance(amount, (int, float)) or not desc:
                 continue
             when = parse_date(None if is_may else sheet.cell(row, 2).value, sheet.title, is_may)
-            record = {"date": when, "description": " ".join(str(desc).split()), "amount": abs(int(amount)), "source": sheet.title}
+            record = {"date": when, "description": normalize_description(desc), "amount": abs(int(amount)), "source": sheet.title}
             (orders if amount < 0 else payments).append(record)
 
     # Opening credit is a ledger item, not a fake purchase. It offsets the old
@@ -67,7 +89,9 @@ def main():
     adjustments = []
 
     payments.sort(key=lambda p: (p["date"], p["description"]))
-    orders.sort(key=lambda o: (o["date"], o["source"], o["description"]))
+    # Keep historical row ordering stable even though descriptions now preserve
+    # the Excel line breaks used to separate products.
+    orders.sort(key=lambda o: (o["date"], o["source"], canonical_description(o["description"])))
     total_orders = sum(o["amount"] for o in orders)
     total_paid = sum(p["amount"] for p in payments)
     # Excel opening carry at the start of 11.2026 is zero. The current period's
@@ -108,7 +132,7 @@ def main():
     print("insert into public.orders (id,billing_cycle_id,placed_at,description,amount,status) select v.id::uuid,c.id,v.placed_at::date,v.description,v.amount,'unpaid'::public.order_status from (values")
     order_rows = []
     for index, order in enumerate(all_orders):
-        oid = stable_id("order", index, order["date"], order["description"], order["amount"])
+        oid = stable_id("order", index, order["date"], canonical_description(order["description"]), order["amount"])
         order_ids[index] = oid
         label = order["source"] if order["source"] == "05.2026" else cycle_for(order["date"])
         order_rows.append(f"  ('{oid}',{q(label)},'{order['date']}',{q(order['description'])},{order['amount']})")
