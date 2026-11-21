@@ -30,5 +30,5 @@ Purchases and received payments are separate positive records. A signed ledger e
 
 ## 2026-11-21 — Cycle reports and exports
 
-Cycles use the ending month label for a 21st-to-20th range. Closing stores a read-only snapshot; only Admin may reopen. Reports export CSV that opens in Excel, while PDF is produced with the browser print dialog.
+Cycles use the ending month label for a 21st-to-20th range. Closing stores a read-only snapshot; only Admin may reopen. Reports export an Excel-compatible workbook and PDF via the browser print dialog.
 

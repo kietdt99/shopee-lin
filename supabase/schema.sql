@@ -85,6 +85,7 @@ create table public.cycle_closings (
   payment_total bigint not null,
   adjustment_total bigint not null,
   closing_balance bigint not null,
+  next_opening_before bigint,
   closed_at timestamptz not null default now(),
   closed_by uuid not null references auth.users(id)
 );
@@ -220,7 +221,7 @@ $$;
 
 create or replace function public.close_billing_cycle(p_cycle_id uuid)
 returns void language plpgsql security definer set search_path=public as $$
-declare cycle_row public.billing_cycles; opening bigint; purchases bigint; payments bigint; adjustments bigint; closing bigint;
+declare cycle_row public.billing_cycles; opening bigint; purchases bigint; payments bigint; adjustments bigint; closing bigint; prior_next_opening bigint;
 begin
   if not public.is_admin() then raise exception 'Only an admin can close a cycle'; end if;
   select * into cycle_row from public.billing_cycles where id=p_cycle_id for update;
@@ -231,7 +232,8 @@ begin
   select coalesce(sum(amount),0)::bigint into adjustments from public.ledger_entries where billing_cycle_id=p_cycle_id;
   opening := cycle_row.opening_balance;
   closing := opening+purchases-payments+adjustments;
-  insert into public.cycle_closings(billing_cycle_id,opening_balance,purchase_total,payment_total,adjustment_total,closing_balance,closed_by) values(p_cycle_id,opening,purchases,payments,adjustments,closing,auth.uid());
+  select opening_balance into prior_next_opening from public.billing_cycles where starts_on=cycle_row.ends_on+1;
+  insert into public.cycle_closings(billing_cycle_id,opening_balance,purchase_total,payment_total,adjustment_total,closing_balance,next_opening_before,closed_by) values(p_cycle_id,opening,purchases,payments,adjustments,closing,prior_next_opening,auth.uid());
   update public.billing_cycles set status='closed' where id=p_cycle_id;
   update public.billing_cycles set opening_balance=closing where starts_on=cycle_row.ends_on+1;
 end;
@@ -245,7 +247,7 @@ begin
   select * into cycle_row from public.billing_cycles where id=p_cycle_id for update;
   if not found or cycle_row.status<>'closed' then raise exception 'Billing cycle is not closed'; end if;
   update public.billing_cycles set status='open' where id=p_cycle_id;
-  update public.billing_cycles set opening_balance=0 where starts_on=cycle_row.ends_on+1;
+  update public.billing_cycles c set opening_balance=cc.next_opening_before from public.cycle_closings cc where cc.billing_cycle_id=p_cycle_id and c.starts_on=cycle_row.ends_on+1;
   delete from public.cycle_closings where billing_cycle_id=p_cycle_id;
 end;
 $$;
