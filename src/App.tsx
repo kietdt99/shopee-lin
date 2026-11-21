@@ -219,7 +219,6 @@ export default function App() {
 
       <div className="main-area">
         <header className="topbar">
-          <div className="current-page"><h1>{tabLabels[tab]}</h1></div>
           <div className="profile-chip">
             <span className="profile-name">{profile.full_name}</span>
             <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa Hồ Sơ" title="Sửa Hồ Sơ"><Pencil size={16} /></button>
@@ -238,14 +237,6 @@ export default function App() {
       {showDisplayName && <DisplayNameDialog name={profile.full_name} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
     </main>
   )
-}
-
-const tabLabels: Record<Tab, string> = {
-  overview: 'Tổng Quan',
-  orders: 'Đơn Hàng',
-  installments: 'Trả Góp',
-  reports: 'Báo Cáo',
-  accounts: 'Tài Khoản',
 }
 
 function ConfigurationNotice() {
