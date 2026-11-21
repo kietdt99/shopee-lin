@@ -24,8 +24,8 @@ const localSupabaseUrl = (() => {
 })()
 const localLoginAccounts = localSupabaseUrl
   ? [
-      { label: 'Admin', email: import.meta.env.VITE_LOCAL_ADMIN_EMAIL ?? '' },
-      { label: 'Tester Quèn', email: import.meta.env.VITE_LOCAL_VIEWER_EMAIL ?? '' },
+      { role: 'Admin', displayName: 'Bé Kịt Thần Kỳ', email: import.meta.env.VITE_LOCAL_ADMIN_EMAIL ?? '' },
+      { role: 'Viewer', displayName: 'Tester Quèn', email: import.meta.env.VITE_LOCAL_VIEWER_EMAIL ?? '' },
     ].filter((account) => account.email)
   : []
 const now = new Date()
@@ -164,13 +164,13 @@ export default function App() {
     setMessage(error ? 'Email hoặc mật khẩu chưa đúng.' : '')
   }
 
-  const signInAsLocal = async (account: { label: string; email: string }) => {
+  const signInAsLocal = async (account: { role: string; displayName: string; email: string }) => {
     if (!client || !localSupabaseUrl || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return
     setEmail(account.email)
     setPassword('')
-    setMessage(`Đang đăng nhập local với ${account.label}…`)
+    setMessage(`Đang đăng nhập với ${account.displayName}…`)
     const { error } = await client.auth.signInWithPassword({ email: account.email, password: import.meta.env.VITE_LOCAL_DEV_PASSWORD })
-    setMessage(error ? `Đăng nhập local thất bại với ${account.label}. Hãy chạy lại pnpm supabase:local:start.` : '')
+    setMessage(error ? `Đăng nhập ${account.displayName} chưa thành công. Hãy khởi động lại Supabase cục bộ.` : '')
   }
 
   const startPasswordSetup = async () => {
@@ -271,9 +271,9 @@ function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
 }
 
-function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { label: string; email: string }[]; onLoginAsLocal: (account: { label: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
+function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { role: string; displayName: string; email: string }[]; onLoginAsLocal: (account: { role: string; displayName: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
   if (localAccounts.length > 0) {
-    return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.label === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.label}</strong><span>{account.email}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
+    return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.role === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.role}</strong><span>{account.displayName}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
   }
   return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và mật khẩu.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
 }
