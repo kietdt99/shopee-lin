@@ -364,7 +364,7 @@ function DisplayNameDialog({ profile, onClose, onSaved }: { profile: Profile; on
     await onSaved()
     onClose()
   }
-  return <Dialog title="Hồ Sơ" onClose={onClose}><form className="form-stack" onSubmit={save}><ProfileAvatar userId={profile.id} avatarPath={avatarPath} displayName={displayName} onPathChange={setAvatarPath} /><label>Tên Hiển Thị<input required maxLength={50} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label><label>Email<input readOnly value={profile.email} /></label>{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu Thay Đổi'}</button></form></Dialog>
+  return <Dialog title="Hồ Sơ" onClose={onClose}><form className="form-stack" onSubmit={save}><ProfileAvatar userId={profile.id} avatarPath={avatarPath} displayName={displayName} onPathChange={setAvatarPath} /><label>Tên Hiển Thị <span className="required-marker" aria-hidden="true">*</span><input required aria-required="true" maxLength={50} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label><label>Email (Chỉ Xem)<input className="readonly-input" type="email" readOnly aria-readonly="true" value={profile.email} /></label>{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu Thay Đổi'}</button></form></Dialog>
 }
 
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {

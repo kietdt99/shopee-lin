@@ -11,6 +11,7 @@ button { cursor: pointer; }
 .eyebrow { margin-bottom: 6px; color: #d73211; font-size: .78rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 label { display: grid; gap: 7px; font-weight: 650; font-size: .92rem; }
 input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; outline-color: #ee4d2d; }
+.readonly-input, input[readonly] { background: #f7f6f5; color: #6b625e; border-color: #e7e5e4; cursor: default; }
 .primary-button, .light-button { border: 0; border-radius: 12px; padding: 13px 16px; font-weight: 750; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
 .primary-button { color: #fff; background: #ee4d2d; }
 .primary-button:hover { background: #d73211; }
