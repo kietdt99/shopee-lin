@@ -23,6 +23,30 @@ test('login screen fits desktop and mobile viewports', async ({ page, expectNoHo
   await expectNoHorizontalOverflow()
 })
 
+test('target desktop and Samsung mobile viewports use the expected content frame', async ({ page, expectNoHorizontalOverflow }) => {
+  await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+
+  const shell = page.locator('.app-shell')
+  const targets = [
+    { name: 'Desktop 2K 27-inch', width: 2560, height: 1440, expectedShellWidth: 2048 },
+    { name: 'Laptop 14-inch', width: 1920, height: 1080, expectedShellWidth: 1920 },
+    { name: 'Samsung S23 Ultra', width: 360, height: 780, expectedShellWidth: 360 },
+    { name: 'Samsung S25 Ultra', width: 384, height: 832, expectedShellWidth: 384 },
+  ]
+
+  for (const target of targets) {
+    await page.setViewportSize({ width: target.width, height: target.height })
+    const bounds = await shell.boundingBox()
+    expect(bounds, `${target.name}: shell should be visible`).not.toBeNull()
+    expect(Math.abs(bounds!.width - target.expectedShellWidth), `${target.name}: shell width`).toBeLessThanOrEqual(1)
+    if (target.width > 900) {
+      expect(Math.abs((target.width - bounds!.width) / 2 - bounds!.x), `${target.name}: centered shell`).toBeLessThanOrEqual(1)
+    }
+    await expectNoHorizontalOverflow()
+  }
+})
+
 test('local Admin shortcut signs in directly without password input', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin')
   await page.getByTestId('local-login-admin').click()
