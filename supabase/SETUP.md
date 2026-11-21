@@ -1,5 +1,21 @@
 # Supabase setup
 
+## Local development with one-click test accounts
+
+Install Docker Desktop and leave it running. Then, from the repository root, run:
+
+```powershell
+pnpm install
+pnpm supabase:local:start
+pnpm dev
+```
+
+On the local login page, click **Login as → Admin** or **Tester Quèn**. Both local users are seeded through the local Supabase Auth Admin API, so this exercises the actual local Auth session, profile role, and RLS policies without asking for a password or sending email. The users have the same allowlisted email identities as production, but their passwords and database are local-only.
+
+The script creates an isolated CLI workspace under ignored `supabase/local/` and writes Vite settings to ignored `.env.development.local`; it never overwrites `.env.local` and it does not link to or connect to the hosted project. It copies the current `schema.sql` as one valid local baseline migration instead of replaying the date-only hosted migration history. Local database data starts empty; no Excel history or production data is copied. Re-run `pnpm supabase:local:start` after resetting the local database to recreate the two users.
+
+Stop the local stack with `pnpm supabase:local:stop`. The quick-login buttons are hidden unless Vite is in development mode and the app points at `http://127.0.0.1:54321`; production login remains email/password.
+
 ## 1. Apply the schema
 
 Open **SQL Editor** in the Supabase dashboard, paste `schema.sql`, and run it once. This creates all application tables, the payment transaction function, and Row Level Security policies.

@@ -12,6 +12,21 @@ const payeeBank = import.meta.env.VITE_PAYEE_BANK ?? 'TPB'
 const paymentQrUrl = payeeName && payeeAccount
   ? `https://img.vietqr.io/image/${payeeBank}-${payeeAccount}-compact2.png?accountName=${encodeURIComponent(payeeName)}`
   : ''
+const localSupabaseUrl = (() => {
+  if (!import.meta.env.DEV || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return false
+  try {
+    const url = new URL(import.meta.env.VITE_SUPABASE_URL)
+    return url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname) && url.port === '54321'
+  } catch {
+    return false
+  }
+})()
+const localLoginAccounts = localSupabaseUrl
+  ? [
+      { label: 'Admin', email: import.meta.env.VITE_LOCAL_ADMIN_EMAIL ?? '' },
+      { label: 'Tester Quèn', email: import.meta.env.VITE_LOCAL_VIEWER_EMAIL ?? '' },
+    ].filter((account) => account.email)
+  : []
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
 const cycleLabel = (value: string) => {
@@ -127,6 +142,15 @@ export default function App() {
     setMessage(error ? 'Email hoặc password chưa đúng.' : '')
   }
 
+  const signInAsLocal = async (account: { label: string; email: string }) => {
+    if (!client || !localSupabaseUrl || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return
+    setEmail(account.email)
+    setPassword('')
+    setMessage(`Đang đăng nhập local với ${account.label}…`)
+    const { error } = await client.auth.signInWithPassword({ email: account.email, password: import.meta.env.VITE_LOCAL_DEV_PASSWORD })
+    setMessage(error ? `Đăng nhập local thất bại với ${account.label}. Hãy chạy lại pnpm supabase:local:start.` : '')
+  }
+
   const startPasswordSetup = async () => {
     if (!client || !email) return setMessage('Nhập email trước nhé.')
     localStorage.setItem('shopee-lin-password-setup', 'true')
@@ -176,7 +200,7 @@ export default function App() {
   if (!isSupabaseConfigured) return <ConfigurationNotice />
   if (loading) return <main className="centered"><p>Đang mở sổ nợ của Bé Lin…</p></main>
   if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
-  if (!profile) return <Login email={email} password={password} message={message} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
+  if (!profile) return <Login email={email} password={password} message={message} localAccounts={localLoginAccounts} onLoginAsLocal={(account) => void signInAsLocal(account)} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
   return (
     <main className="app-shell">
@@ -216,8 +240,8 @@ function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
 }
 
-function Login({ email, password, message, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
-  return <main className="centered"><section className="auth-card"><p className="eyebrow">Sổ chi tiêu</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và password.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Password<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt password lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên password?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
+function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { label: string; email: string }[]; onLoginAsLocal: (account: { label: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
+  return <main className="centered"><section className="auth-card"><p className="eyebrow">Sổ chi tiêu</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và password.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Password<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form>{localAccounts.length > 0 && <section className="local-login-picker" aria-label="Local account shortcuts"><p className="local-login-title">Login as</p><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.label === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.label}</strong><span>{account.email}</span></button>)}</div><p className="local-login-hint">Chỉ dùng Supabase local; không đăng nhập vào production.</p></section>}<div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt password lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên password?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
 }
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {

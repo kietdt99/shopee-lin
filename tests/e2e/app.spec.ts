@@ -14,7 +14,33 @@ test('login screen fits desktop and mobile viewports', async ({ page, expectNoHo
   await expect(page.getByRole('heading', { name: 'Bé Lin' })).toBeVisible()
   await expect(page.getByLabel('Email')).toBeVisible()
   await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
+  await expect(page.getByText('Login as')).toBeVisible()
+  await expect(page.getByTestId('local-login-admin')).toContainText('tuankiet141199@gmail.com')
+  await expect(page.getByTestId('local-login-tester')).toContainText('tuankiet141199+lin-test@gmail.com')
   await expectNoHorizontalOverflow()
+})
+
+test('local Admin shortcut signs in directly without password input', async ({ page }) => {
+  const mock = await mockSupabase(page, 'admin')
+  await page.getByTestId('local-login-admin').click()
+
+  await expect(page.getByRole('button', { name: 'Tài khoản' })).toBeVisible()
+  expect(mock.requests.find((request) => request.path === '/auth/v1/token')?.body).toMatchObject({
+    email: 'tuankiet141199@gmail.com',
+    password: 'Shopee-Lin-Local-Only-2026',
+  })
+})
+
+test('local Tester shortcut signs in directly with the Viewer role', async ({ page }) => {
+  const mock = await mockSupabase(page, 'viewer')
+  await page.getByTestId('local-login-tester').click()
+
+  await expect(page.getByRole('button', { name: 'Tài khoản' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Đơn hàng' })).toBeVisible()
+  expect(mock.requests.find((request) => request.path === '/auth/v1/token')?.body).toMatchObject({
+    email: 'tuankiet141199+lin-test@gmail.com',
+    password: 'Shopee-Lin-Local-Only-2026',
+  })
 })
 
 test('Admin can open account management and viewer does not see it', async ({ page, expectNoHorizontalOverflow }) => {

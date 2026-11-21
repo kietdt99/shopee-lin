@@ -62,3 +62,7 @@ Use Shopee orange as the app's accent color with white cards and neutral gray ba
 
 `record_order_payment` and `cancel_order` lock billing cycles before order rows in a stable order. Payment allocation locks both the selected orders' cycles and the cycle(s) containing `p_paid_at`, because reports include payments by paid date. This serializes payment allocation with cancellation and cycle close. `cancel_order` also rejects an already-cancelled order before writing a refund adjustment, preventing concurrent or repeated calls from recording duplicate refunds. Apply the migration before relying on these guards in Supabase.
 
+## 2026-11-22 — One-click local test accounts
+
+Local development uses an isolated Supabase stack with seeded Admin and Viewer-test Auth users. The login shortcuts appear only in Vite development when the configured Supabase API is loopback on port 54321. They authenticate against local Supabase using a local-only password; production builds and hosted Supabase URLs never show the shortcuts. Local test accounts use the same allowlisted emails to exercise the real role trigger and RLS, but local data and passwords are separate from production. The stack starts from the checked-in schema snapshot in a generated, ignored local workspace so it does not replay the unresolved hosted migration history.
+
