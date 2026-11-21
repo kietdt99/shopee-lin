@@ -67,6 +67,7 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 .metric strong { font-size: 1.1rem; }
 .section-card, .list-card { padding: 20px; }
 .section-card h2, .page-heading h2 { margin: 0; font-size: 1.18rem; }
+.overview-cycle-label { margin: 0 0 6px; color: #716b67; font-size: .88rem; }
 .section-card > p { color: #716b67; margin: 16px 0 0; }
 .status-pill, .order-status { border-radius: 999px; padding: 5px 9px; font-size: .76rem; font-weight: 750; }
 .status-pill, .order-status.paid { background: #e0f8e8; color: #177443; }

@@ -82,3 +82,6 @@
 
 - Sidebar profile shows the user's role centered below their display name. The current-period card omits the duplicate Admin badge; the aggregate payment metric remains Admin-only per the existing product decision.
 
+
+- Current-period overview label uses the same neutral gray text treatment as metric labels; the value below it is the cycle month/year only (for example, 12.2026).
+

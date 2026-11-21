@@ -379,7 +379,7 @@ function Overview({ outstanding, paid, plans, isAdmin, onPay }: { outstanding: n
   return <section className="content-stack">
     <section className="balance-card"><p>Dư nợ Shopee hiện tại</p><strong>{formatVnd(outstanding)}</strong><span>Cập nhật từ các đơn chưa thanh toán</span>{!isAdmin && <button className="light-button" onClick={onPay}><Smartphone size={18} />Thanh toán</button>}</section>
     <section className="metric-grid">{isAdmin && <article className="metric"><span>Tổng đã thanh toán</span><strong>{formatVnd(paid)}</strong></article>}<article className="metric"><span>Còn trả góp</span><strong>{formatVnd(installmentRemaining)}</strong></article></section>
-    <section className="section-card"><div className="section-heading"><div><p className="eyebrow">Kỳ hiện tại</p><h2>Kỳ {cycleLabel(today)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
+    <section className="section-card"><div className="section-heading"><div><p className="overview-cycle-label">Kỳ Hiện Tại</p><h2>{cycleLabel(today)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
   </section>
 }
 
