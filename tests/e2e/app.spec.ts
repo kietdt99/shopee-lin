@@ -24,7 +24,7 @@ test('local Admin shortcut signs in directly without password input', async ({ p
   const mock = await mockSupabase(page, 'admin')
   await page.getByTestId('local-login-admin').click()
 
-  await expect(page.getByRole('button', { name: 'Tài khoản' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tài Khoản' })).toBeVisible()
   expect(mock.requests.find((request) => request.path === '/auth/v1/token')?.body).toMatchObject({
     email: 'tuankiet141199@gmail.com',
     password: 'Shopee-Lin-Local-Only-2026',
@@ -35,8 +35,8 @@ test('local Tester shortcut signs in directly with the Viewer role', async ({ pa
   const mock = await mockSupabase(page, 'viewer')
   await page.getByTestId('local-login-tester').click()
 
-  await expect(page.getByRole('button', { name: 'Tài khoản' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Đơn hàng' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tài Khoản' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Đơn Hàng' })).toBeVisible()
   expect(mock.requests.find((request) => request.path === '/auth/v1/token')?.body).toMatchObject({
     email: 'tuankiet141199+lin-test@gmail.com',
     password: 'Shopee-Lin-Local-Only-2026',
@@ -46,8 +46,8 @@ test('local Tester shortcut signs in directly with the Viewer role', async ({ pa
 test('Admin can open account management and viewer does not see it', async ({ page, expectNoHorizontalOverflow }) => {
   await mockSupabase(page, 'admin')
   await signIn(page, 'admin')
-  await expect(page.getByRole('button', { name: 'Tài khoản' })).toBeVisible()
-  await page.getByRole('button', { name: 'Tài khoản' }).click()
+  await expect(page.getByRole('button', { name: 'Tài Khoản' })).toBeVisible()
+  await page.getByRole('button', { name: 'Tài Khoản' }).click()
   await expect(page.getByRole('heading', { name: 'Quản lý tài khoản' })).toBeVisible()
   await expect(page.getByText('Bé Lin Tốc Độ Cao')).toBeVisible()
   await page.getByRole('button', { name: 'Reset password' }).click()
@@ -62,7 +62,7 @@ test('Admin can open account management and viewer does not see it', async ({ pa
 test('User can edit only the display name shown in their session', async ({ page }) => {
   const mock = await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
-  await page.getByRole('button', { name: 'Sửa display name' }).click()
+  await page.getByRole('button', { name: 'Sửa Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Đổi display name' })
   await dialog.getByLabel('Display name').fill('Bé Lin Test UI')
   await dialog.getByRole('button', { name: 'Lưu tên hiển thị' }).click()
@@ -75,7 +75,7 @@ test('User can edit only the display name shown in their session', async ({ page
 test('Viewer sees read-only navigation and the payment QR dialog', async ({ page, expectNoHorizontalOverflow }) => {
   await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
-  await expect(page.getByRole('button', { name: 'Tài khoản' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Tài Khoản' })).toHaveCount(0)
   await page.getByRole('button', { name: 'Thanh toán' }).click()
   await expect(page.getByRole('dialog', { name: 'Thanh toán' })).toBeVisible()
   await expect(page.getByRole('img', { name: 'Mã VietQR thanh toán' })).toHaveAttribute('src', /vietqr\.io\/image\/TPB-0000000000/)
@@ -87,28 +87,38 @@ test('Viewer can open orders, installments, and reports on responsive layouts', 
   await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
 
-  await page.getByRole('button', { name: 'Đơn hàng' }).click()
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
   await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
   await expect(page.getByText('Chưa có đơn hàng.')).toBeVisible()
   await expectNoHorizontalOverflow()
 
-  await page.getByRole('button', { name: 'Trả góp' }).click()
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
   await expect(page.getByRole('heading', { name: 'Trả góp' })).toBeVisible()
   await expect(page.getByText('S25 Ultra')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Thêm lần góp' })).toHaveCount(0)
   await expectNoHorizontalOverflow()
 
-  await page.getByRole('button', { name: 'Báo cáo' }).click()
+  await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await expect(page.getByRole('heading', { name: 'Báo cáo kỳ' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Khóa sổ kỳ này' })).toHaveCount(0)
   await expectNoHorizontalOverflow()
+})
+
+test('ShopeeLin brand returns to the overview', async ({ page }) => {
+  await mockSupabase(page, 'viewer')
+  await signIn(page, 'viewer')
+
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+  await page.getByRole('button', { name: 'ShopeeLin — Tổng Quan' }).click()
+
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
 })
 
 for (const role of ['admin', 'viewer'] as const) {
   test(`${role} sees the empty installment-plan state`, async ({ page }) => {
     await mockSupabase(page, role, { installmentSummary: [] })
     await signIn(page, role)
-    await page.getByRole('button', { name: 'Trả góp' }).click()
+    await page.getByRole('button', { name: 'Trả Góp' }).click()
 
     await expect(page.getByText('Chưa có khoản trả góp.')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Tạo khoản góp' })).toHaveCount(role === 'admin' ? 1 : 0)
@@ -121,7 +131,7 @@ test('Viewer sees an installment plan with no payment history', async ({ page })
     installmentPayments: [],
   })
   await signIn(page, 'viewer')
-  await page.getByRole('button', { name: 'Trả góp' }).click()
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
 
   await expect(page.getByText('S25 Ultra')).toBeVisible()
   await expect(page.getByText('Đã góp 0 ₫ / 20.000.000 ₫')).toBeVisible()
@@ -145,14 +155,14 @@ test('successful password setup removes the redirect marker from the URL', async
   await page.getByLabel('Password mới').fill('new-test-password')
   await page.getByRole('button', { name: 'Lưu password' }).click()
 
-  await expect(page.getByRole('button', { name: 'Tổng quan' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
   await expect(page).toHaveURL('http://127.0.0.1:4173/')
 })
 
 test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin', { cycles: [mayCycle, juneCycle, januaryCycle] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Đơn hàng' }).click()
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
 
   const boundaryCases = [
     { description: 'Order on May 20', date: '2026-05-20', cycleId: mayCycle.id },
@@ -195,7 +205,7 @@ test('Admin allocates one partial payment across multiple orders and rejects exc
   ]
   const mock = await mockSupabase(page, 'admin', { orders, cycles: [cycle] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Đơn hàng' }).click()
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
   await page.getByLabel('Chọn First order').check()
   await page.getByLabel('Chọn Second order').check()
 
@@ -231,7 +241,7 @@ test('Admin cancels a paid order and records a refund adjustment', async ({ page
   const allocation = { payment_id: payment.id, order_id: order.id, amount: 5000 }
   const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [mayCycle], payments: [payment], allocations: [allocation] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Đơn hàng' }).click()
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
 
   const dialogTypes: string[] = []
   const acceptDialogs = async (dialog: import('@playwright/test').Dialog) => {
@@ -254,7 +264,7 @@ test('Admin deletes a fully unpaid order after confirmation', async ({ page }) =
   const order: MockOrder = { id: 'order-delete', description: 'Unpaid test order', placed_at: '2026-05-02', amount: 9000, status: 'unpaid', billing_cycle_id: mayCycle.id }
   const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [mayCycle] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Đơn hàng' }).click()
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
 
   page.once('dialog', async (dialog) => {
     expect(dialog.type()).toBe('confirm')
@@ -271,7 +281,7 @@ test('Admin exports the selected cycle as an Excel-compatible report', async ({ 
   const payment = { id: 'payment-may', paid_at: '2026-05-20', amount: 75000, note: 'Bé Lin chuyển khoản' }
   const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [mayCycle, juneCycle], payments: [payment] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Báo cáo' }).click()
+  await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await page.getByLabel('Kỳ sổ').selectOption(mayCycle.id)
 
   const downloadPromise = page.waitForEvent('download')
@@ -297,7 +307,7 @@ test('Admin closes a cycle with a balance snapshot and reopens it restoring the 
   const payment = { id: 'payment-close-may', paid_at: '2026-05-20', amount: 75_000, note: 'Test payment' }
   const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [may, june], payments: [payment] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Báo cáo' }).click()
+  await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await page.getByLabel('Kỳ sổ').selectOption(may.id)
   await expectNoHorizontalOverflow()
 
@@ -336,7 +346,7 @@ test('Admin closes a cycle with a balance snapshot and reopens it restoring the 
 test('Print report action invokes print and print media hides app navigation/actions', async ({ page }) => {
   await mockSupabase(page, 'admin', { cycles: [mayCycle] })
   await signIn(page, 'admin')
-  await page.getByRole('button', { name: 'Báo cáo' }).click()
+  await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await page.evaluate(() => {
     window.print = () => { document.documentElement.dataset.printInvoked = 'true' }
   })
