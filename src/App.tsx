@@ -3,6 +3,7 @@ import { CheckCircle2, ChevronDown, CircleX, CreditCard, Eye, LogOut, Package, P
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
+import defaultAvatar from './avatar-default.svg'
 import type { InstallmentPlan, Order, Payment, Profile } from './types'
 
 type Tab = 'overview' | 'orders' | 'installments' | 'reports' | 'accounts'
@@ -244,11 +245,7 @@ export default function App() {
           {isAdmin && <TabButton active={tab === 'accounts'} onClick={() => setTab('accounts')} icon={<Users size={18} />} label="Tài Khoản" />}
         </nav>
         <div className="sidebar-footer">
-          <div className="profile-chip">
-            <span className="profile-name">{profile.full_name}</span>
-            <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa Hồ Sơ" title="Sửa Hồ Sơ"><Pencil size={16} /></button>
-            <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
-          </div>
+          <SidebarProfile profile={profile} onEdit={() => setShowDisplayName(true)} onSignOut={() => void signOut()} />
           <span className="app-version">v0.1.0</span>
         </div>
       </aside>
@@ -265,6 +262,29 @@ export default function App() {
       {showDisplayName && <DisplayNameDialog profile={profile} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
     </main>
   )
+}
+
+function SidebarProfile({ profile, onEdit, onSignOut }: { profile: Profile; onEdit: () => void; onSignOut: () => void }) {
+  const [avatarUrl, setAvatarUrl] = useState('')
+
+  useEffect(() => {
+    let active = true
+    setAvatarUrl('')
+    if (!supabase || !profile.avatar_path) return () => { active = false }
+    void supabase.storage.from('profile-avatars').createSignedUrl(profile.avatar_path, 1800).then(({ data, error }) => {
+      if (active && !error) setAvatarUrl(data.signedUrl)
+    })
+    return () => { active = false }
+  }, [profile.avatar_path])
+
+  return <section className="sidebar-profile" aria-label="Hồ Sơ">
+    <img className="sidebar-avatar" src={avatarUrl || defaultAvatar} alt={`Ảnh đại diện ${profile.full_name}`} />
+    <strong className="sidebar-profile-name">{profile.full_name}</strong>
+    <div className="sidebar-profile-actions">
+      <button className="sidebar-action" onClick={onEdit}><Pencil size={16} />Cập Nhật Trang Cá Nhân</button>
+      <button className="sidebar-action" onClick={onSignOut}><LogOut size={16} />Đăng Xuất</button>
+    </div>
+  </section>
 }
 
 function ConfigurationNotice() {

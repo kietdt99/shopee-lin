@@ -101,5 +101,5 @@ Cap the centered application shell at 2048px instead of 1480px. This uses large 
 
 ## 2026-11-22 — Sidebar panel and footer
 
-Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Move profile edit and sign-out controls into the bottom of the sidebar, with the `v0.1.0` label below them. At mobile widths, preserve horizontal tabs and show the profile/version row inside the compact navigation panel.
+Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Show a larger profile card at the bottom with an avatar, display name, and labeled profile/sign-out actions. Use a bundled default avatar for every account without an uploaded image. Place the `v0.1.0` label below and left-aligned. At mobile widths, preserve horizontal tabs and adapt the profile card to a compact row with actions below it.
 
