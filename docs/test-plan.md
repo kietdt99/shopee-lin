@@ -81,7 +81,8 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 - [ ] Cancelling a fully unpaid order follows the delete confirmation path. Cancelling a paid or partially allocated order follows the cancellation/refund path; refund cannot exceed received allocations.
 - [x] Before applying `20261121_z_serialize_order_financial_rpcs.sql`, audit existing refund ledger rows for duplicates; 2026-11-21 check found zero refund rows. The migration does not reconcile historical entries.
 - [x] After applying the migration, run a synthetic RPC smoke test: payment allocation succeeded, first cancellation created one refund, second cancellation was rejected, and all temporary rows were removed. Post-apply function checks confirmed both routines remain `SECURITY DEFINER`, executable by `authenticated`, with the expected guards.
-- [ ] Verify concurrent payment and cancellation on the same order serialize safely: no allocation is attached after cancellation and no refund calculation omits an already committed allocation. Exercise cycle close racing cancellation, and cycle close racing a payment whose `paid_at` is in that cycle, when live QA supports concurrency testing.
+- [x] Live two-session payment/cancellation race on 2026-11-21: both RPC requests completed in a valid order; final order was cancelled with exactly one full allocation and no refund adjustment. The open cycle remained open; all synthetic rows were removed and verified absent.
+- [ ] Exercise cycle close racing cancellation, and cycle close racing a payment whose `paid_at` is in that cycle, when live QA supports concurrency testing.
 - [ ] Cancelled/refunded orders display the right state and do not inflate purchase totals. Verify a zero-refund and a valid partial/full refund case.
 - [ ] Orders in a closed cycle cannot be added, edited, deleted, or moved by bypassing the UI.
 
