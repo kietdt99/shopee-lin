@@ -7,4 +7,6 @@ test-results/
 .env.*.local
 !.env.example
 supabase/local/
+supabase/.temp/
+/bé Lin thiếu nợ.xlsx
 
