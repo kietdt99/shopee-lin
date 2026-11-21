@@ -24,6 +24,10 @@ A Gmail plus-alias is a third allowlisted identity with the viewer role. It deli
 
 Use email/password for routine sign-in so users do not need to open email on every login. A first-time password setup or password reset uses a Supabase email link; the existing allowlist trigger remains the authority for which identities may receive profiles. Supabase's default persistent browser session remains enabled.
 
+## 2026-11-21 — Per-user display names
+
+Profiles use the requested default display names, and each authenticated user can update only their own display name through a constrained database function. Role changes remain unavailable through this profile edit flow.
+
 ## 2026-11-21 — Legacy date normalization
 
 During the one-time Excel import, date cells parsed as `mm/dd/yyyy` are normalized to `dd/mm/yyyy`, matching the Vietnamese billing cycles and the confirmed source convention.

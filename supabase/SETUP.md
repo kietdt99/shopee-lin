@@ -12,6 +12,8 @@ No dashboard user creation is needed. On first use, each allowlisted user enters
 - Viewer test account (Gmail plus-alias, delivered to the Admin inbox)
 - Viewer account
 
+Default display names are **Bé Kịt Thần Kỳ**, **Tester Quèn**, and **Bé Lin Tốc Độ Cao**. Each user can edit their own display name from the profile header.
+
 ## 3. Configure Auth
 
 - In **Authentication → URL Configuration**, add the local URL used for development and the final GitHub Pages URL as redirect URLs.

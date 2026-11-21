@@ -11,6 +11,7 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Admin: Can create, update, cancel, settle, and close records.
 - Viewer: Bé Lin. Can only view balances, reports, installments, and payment details.
 - Viewer test: A separate Gmail plus-alias account that delivers to the Admin inbox.
+- Default display names: Admin — Bé Kịt Thần Kỳ; Viewer test — Tester Quèn; Bé Lin — Bé Lin Tốc Độ Cao. Each user can edit their own display name in the app.
 
 ## Core rules
 
