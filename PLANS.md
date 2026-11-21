@@ -25,5 +25,5 @@
 - [x] Serialize payment allocation and cancellation RPCs with cycle-before-order locks, including the payment-date cycle; reject repeated cancellation before adding another refund entry.
 - [x] Apply `supabase/migrations/20261121_z_serialize_order_financial_rpcs.sql` to Supabase; audit found zero prior refund rows. A temporary live RPC smoke test verified payment allocation and duplicate-cancellation rejection, and confirmed temporary rows were cleaned up.
 - [x] Run a two-request payment/cancellation concurrency check; final synthetic state had one allocation and a cancelled order, and all test rows were removed.
-- [ ] Run a cycle-close concurrency check against cancellation/payment-date reporting before release.
+- [x] Run live cycle-close races against cancellation and a payment dated inside the cycle (2026-11-21): close won the cancellation race and the cancel RPC rejected; payment won its race and close stored the matching 5,555 VND purchases / 4,321 VND payment snapshot. All isolated 2000-dated synthetic rows were removed and verified absent.
 

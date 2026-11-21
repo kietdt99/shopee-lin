@@ -83,7 +83,7 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 - [x] Before applying `20261121_z_serialize_order_financial_rpcs.sql`, audit existing refund ledger rows for duplicates; 2026-11-21 check found zero refund rows. The migration does not reconcile historical entries.
 - [x] After applying the migration, run a synthetic RPC smoke test: payment allocation succeeded, first cancellation created one refund, second cancellation was rejected, and all temporary rows were removed. Post-apply function checks confirmed both routines remain `SECURITY DEFINER`, executable by `authenticated`, with the expected guards.
 - [x] Live two-session payment/cancellation race on 2026-11-21: both RPC requests completed in a valid order; final order was cancelled with exactly one full allocation and no refund adjustment. The open cycle remained open; all synthetic rows were removed and verified absent.
-- [ ] Exercise cycle close racing cancellation, and cycle close racing a payment whose `paid_at` is in that cycle, when live QA supports concurrency testing.
+- [x] Live concurrency QA (2026-11-21, isolated synthetic cycle): cycle close won the cancellation race, and cancellation rejected against the closed cycle; a payment dated inside the cycle won the payment race, then close stored the expected purchase/payment totals. No deadlock occurred; the cycle was reopened, all synthetic rows were removed, and read-only verification found zero remaining fixtures.
 - [ ] Cancelled/refunded orders display the right state and do not inflate purchase totals. Verify a zero-refund and a valid partial/full refund case.
 - [ ] Orders in a closed cycle cannot be added, edited, deleted, or moved by bypassing the UI.
 
