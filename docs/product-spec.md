@@ -12,6 +12,7 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Viewer: Bé Lin. Can only view balances, reports, installments, and payment details.
 - Viewer test: A separate Gmail plus-alias account that delivers to the Admin inbox.
 - Default display names: Admin — Bé Kịt Thần Kỳ; Viewer test — Tester Quèn; Bé Lin — Bé Lin Tốc Độ Cao. Each user can edit their own display name in the app.
+- Admin can generate a single-use recovery link for a provisioned Viewer without sending email; the Viewer chooses a new password from the link. Its five-minute expiry requires the project-wide Email OTP expiry to be configured to 300 seconds.
 
 ## Core rules
 

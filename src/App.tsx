@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, CreditCard, LogOut, Package, Plus, ReceiptText, Smartphone, Pencil, Trash2 } from 'lucide-react'
+import { CheckCircle2, CreditCard, LogOut, Package, Plus, ReceiptText, Smartphone, Pencil, Trash2, Users } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import type { InstallmentPlan, Order, Payment, Profile } from './types'
 
-type Tab = 'overview' | 'orders' | 'installments' | 'reports'
+type Tab = 'overview' | 'orders' | 'installments' | 'reports' | 'accounts'
 
 const payeeName = import.meta.env.VITE_PAYEE_NAME ?? ''
 const payeeAccount = import.meta.env.VITE_PAYEE_ACCOUNT ?? ''
@@ -30,7 +30,9 @@ const cycleRange = (label: string) => {
 export default function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
+  const [message, setMessage] = useState(() => new URLSearchParams(window.location.search).get('error_code') === 'otp_expired'
+    ? 'Recovery link đã hết hạn. Nhắn bé Kịt tạo link mới nhé.'
+    : '')
   const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).has('set-password'))
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -46,6 +48,7 @@ export default function App() {
   const [closings, setClosings] = useState<any[]>([])
   const [reportCycle, setReportCycle] = useState('')
   const [installmentPayments, setInstallmentPayments] = useState<any[]>([])
+  const [accounts, setAccounts] = useState<Profile[]>([])
 
   const client = supabase
   const isAdmin = profile?.role === 'admin'
@@ -69,8 +72,9 @@ export default function App() {
       return
     }
 
-    const [profileResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult] = await Promise.all([
+    const [profileResult, accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult] = await Promise.all([
       client.from('profiles').select('id,email,full_name,role').eq('id', user.id).single(),
+      client.from('profiles').select('id,email,full_name,role').order('role').order('full_name'),
       client.from('orders').select('id,placed_at,description,amount,status,billing_cycle_id').order('placed_at', { ascending: false }),
       client.from('payments').select('id,paid_at,amount,note').order('paid_at', { ascending: false }),
       client.from('installment_summary').select('id,name,total_amount,total_paid'),
@@ -86,6 +90,7 @@ export default function App() {
       setProfile(null)
     } else {
       setProfile(profileResult.data as Profile)
+      setAccounts((accountResult.data ?? []) as Profile[])
       setOrders((orderResult.data ?? []) as Order[])
       setPayments((paymentResult.data ?? []) as Payment[])
       setPlans((planResult.data ?? []) as InstallmentPlan[])
@@ -140,7 +145,7 @@ export default function App() {
     if (!client || !email) return setMessage('Nhập email trước nhé.')
     setMessage('Đang gửi link reset password…')
     const { error } = await client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}?reset-password=1`,
+      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
     })
     setMessage(error ? error.message : 'Nếu email đã được cấp quyền, link reset sẽ được gửi tới hộp thư.')
   }
@@ -188,12 +193,14 @@ export default function App() {
         <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={<Package size={18} />} label="Đơn hàng" />
         <TabButton active={tab === 'installments'} onClick={() => setTab('installments')} icon={<CreditCard size={18} />} label="Trả góp" />
         <TabButton active={tab === 'reports'} onClick={() => setTab('reports')} icon={<ReceiptText size={18} />} label="Báo cáo" />
+        {isAdmin && <TabButton active={tab === 'accounts'} onClick={() => setTab('accounts')} icon={<Users size={18} />} label="Tài khoản" />}
       </nav>
 
       {tab === 'overview' && <Overview outstanding={outstanding} paid={paidThisList} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
       {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} isAdmin={isAdmin} onUpdated={loadData} />}
       {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}
       {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
+      {tab === 'accounts' && isAdmin && <AccountsPanel accounts={accounts} />}
 
       {showPayCard && <PaymentCard onClose={() => setShowPayCard(false)} />}
       {showDisplayName && <DisplayNameDialog name={profile.full_name} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
@@ -211,6 +218,53 @@ function Login({ email, password, message, onEmailChange, onPasswordChange, onSu
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
   return <main className="centered"><section className="auth-card"><p className="eyebrow">Thiết lập tài khoản</p><h1>Đặt password</h1><p>{email ? `Tài khoản ${email}` : 'Tạo password để lần sau đăng nhập không cần mở email.'}</p><form onSubmit={onSubmit}><label>Password mới<input required minLength={8} type="password" autoComplete="new-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Lưu password</button></form>{message && <p className="form-message">{message}</p>}</section></main>
+}
+
+function AccountsPanel({ accounts }: { accounts: Profile[] }) {
+  const [resetting, setResetting] = useState<Profile | null>(null)
+  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Quản lý tài khoản</h2></div></div><p className="hint">Tạo recovery link dùng một lần để user tự đặt password mới. Link không gửi email và hết hạn sau 5 phút.</p><section className="list-card">{accounts.length === 0 ? <p className="empty-state">Chưa có account nào.</p> : accounts.map((account) => <article className="account-row" key={account.id}><div className="order-details"><strong>{account.full_name}</strong><span>{account.email} · {account.role === 'admin' ? 'Admin' : 'Viewer'}</span></div>{account.role === 'viewer' && <button className="secondary-button" onClick={() => setResetting(account)}>Reset password</button>}</article>)}</section>{resetting && <RecoveryLinkDialog account={resetting} onClose={() => setResetting(null)} />}</section>
+}
+
+function RecoveryLinkDialog({ account, onClose }: { account: Profile; onClose: () => void }) {
+  const [link, setLink] = useState('')
+  const [expiresAt, setExpiresAt] = useState(0)
+  const [remaining, setRemaining] = useState(300)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const createLink = async () => {
+    if (!supabase) return setError('Supabase chưa được cấu hình.')
+    setLoading(true)
+    setError('')
+    setLink('')
+    setCopied(false)
+    const redirectUrl = `${window.location.origin}${import.meta.env.BASE_URL}`
+    const { data, error: invokeError } = await supabase.functions.invoke('admin-reset-password-link', { body: { targetUserId: account.id, redirectUrl } })
+    setLoading(false)
+    if (invokeError) return setError(invokeError.message)
+    setLink(data.actionLink as string)
+    setExpiresAt(Date.parse(data.expiresAt as string))
+  }
+
+  useEffect(() => {
+    if (!expiresAt) return
+    const update = () => setRemaining(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)))
+    update()
+    const timer = window.setInterval(update, 1000)
+    return () => window.clearInterval(timer)
+  }, [expiresAt])
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopied(true)
+    } catch {
+      setError('Không copy tự động được. Chọn và copy link trong ô bên dưới nhé.')
+    }
+  }
+
+  return <Dialog title="Reset password" onClose={onClose}><div className="form-stack"><p>Tài khoản: <strong>{account.full_name}</strong> · {account.email}</p>{!link && <><p className="hint">Tạo recovery link dùng một lần. Link sẽ không gửi email; gửi riêng cho user sau khi copy.</p><button className="primary-button" type="button" disabled={loading} onClick={() => void createLink()}>{loading ? 'Đang tạo link…' : 'Tạo recovery link'}</button></>}{error && <p className="form-message">{error}</p>}{link && <><label>Recovery link<input readOnly value={link} onFocus={(event) => event.currentTarget.select()} /></label><div className="recovery-link-actions"><span className={remaining === 0 ? 'expired' : 'hint'}>{remaining === 0 ? 'Link đã hết hạn' : `Hết hạn sau ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}</span><button className="primary-button compact" type="button" disabled={remaining === 0} onClick={() => void copyLink()}>{copied ? 'Đã copy' : 'Copy link'}</button></div><p className="hint">Gửi link riêng cho user. Link chỉ dùng một lần; khi mở, user sẽ đặt password mới. Đóng cửa sổ sẽ xóa link khỏi app.</p></>}</div></Dialog>
 }
 
 function DisplayNameDialog({ name, onClose, onSaved }: { name: string; onClose: () => void; onSaved: () => Promise<void> }) {

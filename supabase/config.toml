@@ -1,0 +1,7 @@
+project_id = "wrcaejfcifbvmzcuukrd"
+
+[auth.email]
+otp_expiry = 300
+
+[functions.admin-reset-password-link]
+verify_jwt = true
