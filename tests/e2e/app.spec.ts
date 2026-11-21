@@ -47,6 +47,37 @@ test('target desktop and Samsung mobile viewports use the expected content frame
   }
 })
 
+test('sidebar is a distinct panel with profile and version in its footer', async ({ page }) => {
+  await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+
+  const sidebar = page.locator('.sidebar')
+  const navigation = sidebar.getByRole('navigation', { name: 'Điều hướng' })
+  const profile = sidebar.locator('.profile-chip')
+  const version = sidebar.getByText('v0.1.0')
+  await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+  await expect(profile).toBeVisible()
+  await expect(sidebar.getByRole('button', { name: 'Sửa Hồ Sơ' })).toBeVisible()
+  await expect(sidebar.getByRole('button', { name: 'Đăng xuất' })).toBeVisible()
+  await expect(version).toBeVisible()
+
+  const navBounds = await navigation.boundingBox()
+  const profileBounds = await profile.boundingBox()
+  const versionBounds = await version.boundingBox()
+  expect(navBounds).not.toBeNull()
+  expect(profileBounds).not.toBeNull()
+  expect(versionBounds).not.toBeNull()
+  expect(profileBounds!.y).toBeGreaterThan(navBounds!.y + navBounds!.height)
+  if ((page.viewportSize()?.width ?? 0) <= 900) {
+    expect(versionBounds!.x).toBeGreaterThan(profileBounds!.x + profileBounds!.width)
+  } else {
+    expect(versionBounds!.y).toBeGreaterThan(profileBounds!.y + profileBounds!.height)
+    const sidebarBounds = await sidebar.boundingBox()
+    expect(sidebarBounds).not.toBeNull()
+    expect(versionBounds!.y + versionBounds!.height).toBeLessThan(sidebarBounds!.y + sidebarBounds!.height)
+  }
+})
+
 test('local Admin shortcut signs in directly without password input', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin')
   await page.getByTestId('local-login-admin').click()
