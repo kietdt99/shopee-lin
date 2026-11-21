@@ -78,6 +78,30 @@ test('Viewer can open orders, installments, and reports on responsive layouts', 
   await expectNoHorizontalOverflow()
 })
 
+for (const role of ['admin', 'viewer'] as const) {
+  test(`${role} sees the empty installment-plan state`, async ({ page }) => {
+    await mockSupabase(page, role, { installmentSummary: [] })
+    await signIn(page, role)
+    await page.getByRole('button', { name: 'Trả góp' }).click()
+
+    await expect(page.getByText('Chưa có khoản trả góp.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Tạo khoản góp' })).toHaveCount(role === 'admin' ? 1 : 0)
+  })
+}
+
+test('Viewer sees an installment plan with no payment history', async ({ page }) => {
+  await mockSupabase(page, 'viewer', {
+    installmentSummary: [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 0 }],
+    installmentPayments: [],
+  })
+  await signIn(page, 'viewer')
+  await page.getByRole('button', { name: 'Trả góp' }).click()
+
+  await expect(page.getByText('S25 Ultra')).toBeVisible()
+  await expect(page.getByText('Đã góp 0 ₫ / 20.000.000 ₫')).toBeVisible()
+  await expect(page.locator('.payment-history > *')).toHaveCount(0)
+})
+
 test('invalid password displays a login error', async ({ page }) => {
   await mockSupabase(page, 'viewer')
   await page.getByLabel('Email').fill('viewer@example.test')

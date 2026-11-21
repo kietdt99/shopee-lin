@@ -23,7 +23,18 @@ type MockPayment = { id: string; paid_at: string; amount: number; note: string |
 type MockAllocation = { payment_id: string; order_id: string; amount: number }
 type MockClosing = { billing_cycle_id: string; opening_balance: number; purchase_total: number; payment_total: number; adjustment_total: number; closing_balance: number; next_opening_before: number | null }
 type MockLedgerEntry = { id: string; billing_cycle_id: string; entry_date: string; kind: string; amount: number; description: string }
-type MockSeed = { orders?: MockOrder[]; cycles?: MockCycle[]; payments?: MockPayment[]; allocations?: MockAllocation[]; closings?: MockClosing[]; ledgerEntries?: MockLedgerEntry[] }
+type MockInstallmentSummary = { id: string; name: string; total_amount: number; total_paid: number }
+type MockInstallmentPayment = { id: string; plan_id: string; paid_at: string; amount: number; note: string | null }
+type MockSeed = {
+  orders?: MockOrder[]
+  cycles?: MockCycle[]
+  payments?: MockPayment[]
+  allocations?: MockAllocation[]
+  closings?: MockClosing[]
+  ledgerEntries?: MockLedgerEntry[]
+  installmentSummary?: MockInstallmentSummary[]
+  installmentPayments?: MockInstallmentPayment[]
+}
 
 const userIds: Record<TestRole, string> = {
   admin: '00000000-0000-4000-8000-000000000001',
@@ -147,7 +158,9 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
           return
         }
       } else if (table === 'installment_summary') {
-        data = [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 2_000_000 }]
+        data = seed.installmentSummary ?? [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 2_000_000 }]
+      } else if (table === 'installment_payments') {
+        data = seed.installmentPayments ?? []
       } else if (table === 'payments') {
         data = [...state.payments]
       } else if (table === 'payment_allocations') {
