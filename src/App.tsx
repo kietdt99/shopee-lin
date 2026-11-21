@@ -39,6 +39,7 @@ export default function App() {
   const [plans, setPlans] = useState<InstallmentPlan[]>([])
   const [tab, setTab] = useState<Tab>('overview')
   const [showPayCard, setShowPayCard] = useState(false)
+  const [showDisplayName, setShowDisplayName] = useState(false)
   const [cycles, setCycles] = useState<any[]>([])
   const [allocations, setAllocations] = useState<any[]>([])
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([])
@@ -177,6 +178,7 @@ export default function App() {
         </div>
         <div className="profile-chip">
           <span>{profile.full_name}</span>
+          <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa display name" title="Sửa display name"><Pencil size={16} /></button>
           <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
         </div>
       </header>
@@ -194,6 +196,7 @@ export default function App() {
       {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
 
       {showPayCard && <PaymentCard onClose={() => setShowPayCard(false)} />}
+      {showDisplayName && <DisplayNameDialog name={profile.full_name} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
     </main>
   )
 }
@@ -208,6 +211,23 @@ function Login({ email, password, message, onEmailChange, onPasswordChange, onSu
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
   return <main className="centered"><section className="auth-card"><p className="eyebrow">Thiết lập tài khoản</p><h1>Đặt password</h1><p>{email ? `Tài khoản ${email}` : 'Tạo password để lần sau đăng nhập không cần mở email.'}</p><form onSubmit={onSubmit}><label>Password mới<input required minLength={8} type="password" autoComplete="new-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Lưu password</button></form>{message && <p className="form-message">{message}</p>}</section></main>
+}
+
+function DisplayNameDialog({ name, onClose, onSaved }: { name: string; onClose: () => void; onSaved: () => Promise<void> }) {
+  const [displayName, setDisplayName] = useState(name)
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const save = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) return
+    setSaving(true)
+    const { error: updateError } = await supabase.rpc('update_my_display_name', { p_display_name: displayName.trim() })
+    setSaving(false)
+    if (updateError) return setError(updateError.message)
+    await onSaved()
+    onClose()
+  }
+  return <Dialog title="Đổi display name" onClose={onClose}><form className="form-stack" onSubmit={save}><label>Display name<input required maxLength={50} value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></label>{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit" disabled={saving}>{saving ? 'Đang lưu…' : 'Lưu tên hiển thị'}</button></form></Dialog>
 }
 
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
