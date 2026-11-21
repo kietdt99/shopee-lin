@@ -20,6 +20,10 @@ Neither user is created manually in the Supabase dashboard. Passwordless first s
 
 A Gmail plus-alias is a third allowlisted identity with the viewer role. It delivers to the Admin inbox, while Supabase treats it as an independent account for testing the Viewer experience.
 
+## 2026-11-21 — Password login after one-time email activation
+
+Use email/password for routine sign-in so users do not need to open email on every login. A first-time password setup or password reset uses a Supabase email link; the existing allowlist trigger remains the authority for which identities may receive profiles. Supabase's default persistent browser session remains enabled.
+
 ## 2026-11-21 — Legacy date normalization
 
 During the one-time Excel import, date cells parsed as `mm/dd/yyyy` are normalized to `dd/mm/yyyy`, matching the Vietnamese billing cycles and the confirmed source convention.
