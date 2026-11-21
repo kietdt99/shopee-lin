@@ -24,6 +24,10 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 .topbar h1 { margin: 0; font-size: 1.55rem; }
 .profile-chip { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; background: #fff; border: 1px solid #e7e5e4; border-radius: 99px; font-size: .9rem; }
 .profile-name { max-width: min(35vw, 260px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 0; border-bottom: 1px solid #f0eeec; }
+.account-row:last-child { border-bottom: 0; }
+.recovery-link-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.expired { color: #a32617; font-size: .88rem; font-weight: 700; }
 .icon-button, .text-button { background: transparent; border: 0; color: #665f5b; display: grid; place-items: center; }
 .tabs { display: flex; gap: 8px; margin: 26px 0 20px; overflow-x: auto; }
 .tab { border: 1px solid #e7e5e4; background: #fff; color: #665f5b; border-radius: 12px; padding: 10px 13px; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
@@ -82,4 +86,4 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; background: #fff; }
 @media print { body { background: #fff; } .topbar, .tabs, .report-actions, .primary-button, .secondary-button, label { display: none !important; } .app-shell { max-width: none; padding: 0; } .report-orders, .metric { box-shadow: none; break-inside: avoid; } }
 @media (min-width: 700px) { .app-shell { padding-top: 42px; } .dialog-backdrop { place-items: center; } .dialog { border-radius: 24px; } }
-@media (max-width: 440px) { .app-shell { padding-inline: 14px; } .profile-chip span { display: none; } .metric-grid { grid-template-columns: 1fr; } .tab { flex: 1; justify-content: center; } .tab span { font-size: .82rem; } }
+@media (max-width: 440px) { .app-shell { padding-inline: 14px; } .profile-chip span { display: none; } .metric-grid { grid-template-columns: 1fr; } .tab { flex: 1; justify-content: center; } .tab span { font-size: .82rem; } .account-row { align-items: flex-start; flex-direction: column; } .account-row .secondary-button { width: 100%; } }

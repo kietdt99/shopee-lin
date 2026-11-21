@@ -24,6 +24,10 @@ A Gmail plus-alias is a third allowlisted identity with the viewer role. It deli
 
 Use email/password for routine sign-in so users do not need to open email on every login. A first-time password setup or password reset uses a Supabase email link; the existing allowlist trigger remains the authority for which identities may receive profiles. Supabase's default persistent browser session remains enabled.
 
+## 2026-11-21 — Admin-assisted password recovery
+
+For a provisioned Viewer who cannot receive a reset email, Admin can generate a single-use Supabase recovery link without sending email. The link is a bearer credential and must be shared privately; the app does not retain it. Set the project's global Email OTP expiration to 300 seconds before describing the link as a five-minute link. This also shortens other Auth email links, including activation and self-service recovery. The reset endpoint runs in an Edge Function and authorizes Admin from the database profile role.
+
 ## 2026-11-21 — Per-user display names
 
 Profiles use the requested default display names, and each authenticated user can update only their own display name through a constrained database function. Role changes remain unavailable through this profile edit flow.
