@@ -1,86 +1,69 @@
 # Implementation Backlog
 
-This file is the working checklist for the next ShopeeLin build. It separates code that can be completed in the repository from actions that require local Docker or a production account. `PLANS.md` remains the version-level release plan.
+This backlog records the state of the Orders and data-safety release work as of 2026-11-22. `PLANS.md` tracks version-level release gates. The workbook is a one-time source; ordinary entries belong in the app.
 
-## Current work: Orders and data safety
+## Current branch status
 
-### Application behavior
+- Feature implementation: `feature/orders-management`, based on `b3b22fb` with local bootstrap/docs/UI follow-up changes pending commit.
+- Test-only work: `test/orders-management`, based on `b3b22fb`; QA changes are isolated from application code.
+- Local Vite app: `http://localhost:5173/`.
+- Local Supabase: running at loopback only. It uses its own database and local Auth users; no hosted Supabase credentials are used by the app.
+- No app data, migration, or deployment was changed on hosted production during this pass.
 
-- [x] Desktop left sidebar, clickable ShopeeLin brand, mobile navigation, and Title Case navigation tabs.
-- [x] Responsive Orders table with Date / Order / Amount / Status / Actions columns.
-- [x] Search submits only on Enter or the search button.
-- [x] Multi-select cycle and status filters apply only after the user clicks Apply.
-- [x] Show human-readable cycle labels instead of database UUIDs.
-- [x] Render multi-product orders as separate item lines while retaining the original description.
-- [x] Optional Shopee order URL field; Admin Eye action opens validated Shopee order links in a new tab and is disabled without a valid URL.
-- [x] Soft-delete confirmation and Restore action in the Orders UI; deleted orders are visually muted and excluded from balances/reports.
-- [x] Prevent selecting already-paid orders for another payment allocation.
-- [x] Keep the Viewer overview focused on debt and installments; show total received only to Admin.
-- [x] Clarify installment actions: create a plan versus recording a contribution.
-- [x] Show “Tổng đã thanh toán” only to Admin; keep Viewer overview focused on their debt and repayment.
-- [x] Complete Hồ Sơ dialog: private avatar upload, editable display name, read-only email, and one Save Changes action. Browser test and database runtime validation remain open.
-- [ ] Finish app-wide copy/layout pass: inconsistent English, Vietnamese sentence casing, font sizes, alignment, spacing, and mobile touch targets.
+## Completed application work
 
-### Database and import
+- [x] Shopee-inspired orange UI, desktop left sidebar, clickable ShopeeLin brand, mobile navigation, and Title Case tabs.
+- [x] Orders table, submitted search, staged multi-select cycle/status filters, human-readable cycle labels, and separate lines for reliably parsed multi-item orders.
+- [x] Optional validated Shopee order link and disabled Eye action when absent or invalid.
+- [x] Order create/edit, payment allocation across selected orders, partial payment balance, cycle close/reopen, reports, Excel-compatible export, and print-to-PDF action.
+- [x] Reversible soft-delete for eligible unpaid orders; restore action; no direct `DELETE` privilege on any of the nine app tables. Allocated/paid orders use cancellation/refund while preserving the ledger.
+- [x] Installment plan creation and dated contributions with a database-enforced total cap.
+- [x] Admin-only Account tab for generating a temporary recovery link, and Hồ Sơ dialog with self-editable display name, read-only email, private avatar upload, and one Save Changes action.
+- [x] Authentication, role-sensitive UI, and RLS/RPC guards; backend errors in login/password flows now use Vietnamese user-facing copy.
+- [x] Local Admin and Tester one-click login exists only in Vite development against loopback Supabase.
+- [x] Common UI labels, font sizing, alignment, and table layouts were reviewed on desktop/mobile. The table's desktop flex-row collision was fixed; the data table no longer overflows horizontally at the verified desktop viewport.
 
-- [x] Historical workbook importer includes all monthly sheets, including `05.2026`, historical payments/allocations, opening offset, and S25 Ultra contributions.
-- [x] Importer reconciles to 2,999,619 VND Shopee debt and 18,000,000 VND S25 Ultra remaining; stable IDs are unchanged by description normalization.
-- [x] Preserve separate product blocks in multi-item order descriptions.
-- [x] Review and statically validate the no-hard-delete migration, FK behavior, close/reopen snapshot retention, RLS grants, and order soft-delete RPCs. PostgreSQL runtime validation remains unavailable here.
-- [x] Ensure insert/update against an open order cycle cannot race a cycle close; the shared transaction advisory lock serializes direct order writes and financial/cycle RPCs.
-- [x] Ensure the local bootstrap never wipes an existing local database silently; it applies pending migrations without running `db reset`.
-- [x] Enforce a contribution cap so installment payments cannot exceed the plan total, including concurrent writes; the Admin UI calls the guarded RPC and direct authenticated inserts are revoked. Local Postgres verification remains open.
-- [x] Prevent amount/date/cycle edits on orders with allocations when they could invalidate payment history; the Admin UI calls a guarded RPC and direct authenticated order updates are revoked. Local Postgres verification remains open.
-- [x] Require nonblank descriptions and a valid 21st–20th cycle on order insert/update; preflight the existing rows before migration constraints are applied.
-- [x] Prevent reopening an earlier closed cycle while any later cycle remains closed, even if a later snapshot is missing.
-- [ ] Start Supabase local, seed only the local Admin and Tester accounts, and load the one-time history into the isolated local DB when Docker is available.
-- [ ] Verify local Admin/Viewer RLS and soft-delete/restore using the local stack.
-- [x] Do not apply the new migration to hosted Supabase or change production data during this local implementation task.
+## Completed data and local infrastructure checks
+
+- [x] Import the frozen workbook once into the isolated local database, including `05.2026`, historical payments/allocations, opening offset, and S25 Ultra contributions.
+- [x] Reconcile local data: 60 orders; 2 payments; 24 allocations; Shopee debt 2,999,619 VND; S25 Ultra total 21,599,000 VND, paid 3,599,000 VND, remaining 18,000,000 VND.
+- [x] Start Docker Desktop/Supabase local and apply pending local migrations without `db reset`.
+- [x] Seed local Admin and Tester Auth users. Admin signed into the local app; Viewer test signed in through local Auth/PostgREST.
+- [x] Verify Viewer can read orders and profiles but cannot insert installment plans (RLS 403) or call payment, cancellation, close-cycle, or reopen-cycle RPCs (Admin guard rejection).
+- [x] Verify PostgreSQL reports no `DELETE` table privilege for the `authenticated` role on any of the nine public app tables.
+- [x] Preserve the one-time import output, generated local environment, Auth credentials, and Docker database outside version control.
 
 ## Test-only branch: `test/orders-management`
 
-- [ ] Update stale Playwright tests that expect hard deletion and old labels (QA report completed; implementation remains on `test/orders-management`).
-- [ ] Cover soft delete confirmation, deleted styling, no Edit/Delete, Restore, and restore state.
-- [ ] Cover payment eligibility so paid orders cannot be selected; partial orders use only their remaining amount.
-- [ ] Cover installment overpayment rejection and allocated-order financial-field immutability.
-- [ ] Cover search submit behavior, multi-select filters, explicit Apply, human-readable cycle labels, and multiline item rendering.
-- [ ] Cover valid/invalid/missing Shopee links and safe new-tab behavior.
-- [ ] Cover Hồ Sơ avatar loading, unsupported/oversized files, save, signed URL refresh, and mobile layout.
-- [ ] Cover installment create/contribution wording and empty history.
-- [ ] Check 360–390 px mobile and 1280 px+ desktop without horizontal overflow; verify dialogs and action controls remain reachable.
-- [ ] Run the full mocked Playwright suite and `pnpm build`; mocked tests do not prove live RLS or real email/Auth behavior.
+- [x] Replace stale hard-delete/profile-label expectations and cover current local login UI.
+- [x] Cover order search/filter submit behavior, cycle boundaries/year rollover, item-line parsing, and Shopee link validation/safe target attributes.
+- [x] Cover soft-delete confirmation, retained/grey row, debt exclusion, restore, no hard-delete request, and paid/allocated order restrictions.
+- [x] Cover multi-order/partial payment allocation and overpayment rejection; cancellation/refund; cycle close/reopen UI; export and print actions.
+- [x] Cover profile email read-only, avatar validation/upload preview, installment creation/contributions/limits/history, and account role affordances.
+- [x] Run at 1280 px desktop and 390 px / 320 px mobile; no horizontal overflow in covered pages.
+- [x] `pnpm test:e2e`: 77 passed. `pnpm build`: passed. `git diff --check`: clean.
+- [x] QA report: no P0–P3 product defects in the mocked Playwright suite. Mocks do not prove database, Auth, Storage, or production behavior.
 
-## Release gates requiring real infrastructure or account access
+## Remaining release gates
 
-- [ ] Local Supabase-backed end-to-end smoke test. Bootstrap prepared the ignored local workspace and confirmed the one-time import SQL is available; execution stops before startup because this host has no Docker CLI/Desktop.
-- [ ] Authenticated Viewer API/RPC write-denial check, real Admin and Bé Lin login, and real recovery-link single-use/expiry check.
-- [ ] Verify production QR image, reports, balances, roles, and recovery behavior with real authenticated sessions.
-- [ ] Reconcile Supabase migration history before any CLI-managed production migration. The existing project has no usable migration history; do not run `db push` blindly.
-- [ ] Merge reviewed feature and test branches into `main`, cut an immutable `release/vX.Y.Z`, deploy, smoke-test, and tag only after all release gates pass.
-- [ ] Confirm release artifacts contain no secret keys, credentials, local database passwords, or personal payment evidence.
+- [ ] Complete a production-authenticated Admin and Bé Lin smoke test for role visibility, balances, reports, configured QR, session persistence, and password recovery. Preserve Supabase's two-email-per-hour quota; do not request new emails for the Tester.
+- [ ] Verify private avatar Storage ownership against authenticated local Supabase, including cross-user read denial.
+- [ ] Verify live local financial invariants/concurrency for order edits, payment allocation, refunds, cycle close/reopen, and concurrent installment contributions with isolated rollback-safe fixtures.
+- [ ] Reconcile Supabase migration history before using CLI-managed production migrations; do not run `db push` blindly against the legacy date-only migration files.
+- [ ] Review/merge the feature branch and test-only branch into `main` under the repository branch protections. Do not modify the existing immutable release branch with feature code.
+- [ ] Choose the next release version from the reviewed `main`, deploy only from an immutable `release/vX.Y.Z`, run production smoke checks, and tag only after the authenticated gates pass.
+- [ ] Confirm release artifacts contain no `.env*` values, service-role/secret keys, credentials, local database passwords, recovery links, or personal payment evidence.
 
-## Business logic coverage requirements
+## Business invariants
 
-| Invariant | Playwright mock | Local Postgres/RLS |
+| Invariant | Mocked Playwright | Local live verification |
 | --- | --- | --- |
-| Billing cycle uses 21st–20th, including year rollover | Verify assignment payload and label | Verify persisted cycle and closed-cycle rejection |
-| One received payment allocates across eligible orders, partial/exact settlement works, excess fails atomically | Verify request payload, remaining amount, and status | Call RPC and verify allocations/ledger in rollback-only fixtures |
-| Only unpaid orders with zero allocations can soft-delete; restore only while cycle is open | Verify confirm/state/actions and RPC payload | Verify RPC denies paid/partial/closed-cycle cases and no DELETE/TRUNCATE privileges exist |
-| Cancel/refund preserves history, refund cannot exceed allocations, duplicate cancel is rejected | Verify UI sends amount and updates state | Verify ledger adjustments, duplicate guard, and concurrency behavior |
-| Closed cycle blocks order/payment changes; reopen retains history and reclose appends a current snapshot | Verify UI state and RPC flow | Verify persisted snapshots, next opening balance, and competing writes |
-| Installment contribution is positive and cannot exceed remaining principal | Verify form feedback and RPC payload | Verify concurrent contributions cannot exceed plan total |
-| Viewer is read-only, including direct API/RPC/Storage calls | Verify controls are absent | Verify authenticated Viewer requests are denied by RLS/policies |
-| Profile edits affect only current user's name/avatar path | Verify read-only email and UI flow | Verify RPC and Storage reject another user's path |
-| Order description is non-empty; billing cycle is required and matches the 21→20 range | Verify whitespace-only/incorrect-cycle submission is blocked | Verify direct Admin API cannot insert blank description, null/wrong cycle, or edit an allocated order's amount/date/cycle |
-| Reopening an old cycle cannot leave any later closed snapshot stale | Verify multi-cycle dialog/error state | Verify DB rejects reopening when a later closed cycle depends on the balance |
-| VND parser never turns negative/decimal/malformed input into a different positive amount | Verify invalid values send no mutation request | Verify RPC rejects zero, negative, decimal, overflow, and out-of-capacity values |
-
-## Team allocation for this pass
-
-| Owner | Work |
-| --- | --- |
-| Leader | Integrate Orders UI, profile dialog, copy corrections, backlog, local build and test coordination. |
-| Database agent | Review no-hard-delete migration, fix cycle-close race, and make local bootstrap non-destructive. |
-| Profile agent | Implement the private avatar Storage migration and isolated reusable avatar upload component. |
-| Data migration agent | Audit workbook shape, implement safe normalization, and prove deterministic IDs and financial reconciliation. |
-| QA agent | Independently audit all product/business/security/data/UI/release behavior, report severity/evidence to Tech Lead, then implement test-only coverage on `test/orders-management` after feature acceptance. |
+| Billing cycle is 21st–20th, including year rollover | Passed | Persistence/closed-cycle mutation guard pending |
+| Payment allocation is integer VND, supports partial/exact settlement, rejects excess | Passed | Authenticated Admin transaction/concurrency fixture pending |
+| Only unpaid orders with no allocations can be soft-deleted; history is retained | Passed | Viewer API/RPC denial and no DELETE grants passed; Admin mutation fixture pending |
+| Cancellation/refund preserves history and avoids duplicate refunds | Passed | Hosted production smoke/race was previously verified; local updated migrations need fixture verification |
+| Closed cycles block changes; close/reopen snapshots remain coherent | Passed | Local snapshot/concurrency fixture pending |
+| Installment contributions cannot exceed the total | Passed | Viewer Admin-guard denial passed; live concurrent Admin cap fixture pending |
+| Viewer is read-only, including direct writes and Admin-only RPCs | UI passed | Viewer Auth, reads, RLS insert denial, and four Admin-only RPC denials passed; avatar Storage ownership pending |
+| Profile can update only its own name/avatar path | Passed with mocks | Local cross-user Storage/RPC check pending |
+| Orders require a description, valid cycle, and integer positive amount | Passed | Direct Admin invalid-input and allocated-order guards pending |

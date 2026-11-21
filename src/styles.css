@@ -117,8 +117,13 @@ select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; backgrou
 .filter-option input { width: 17px; height: 17px; accent-color: #ee4d2d; }
 .orders-list { padding: 0; overflow: hidden; }
 .orders-table-scroll { width: 100%; overflow-x: auto; }
-.orders-table { width: 100%; border-collapse: collapse; text-align: left; }
+.orders-table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: left; }
 .orders-table th { padding: 15px 14px; color: #716b67; background: #faf9f8; font-size: .82rem; font-weight: 800; white-space: nowrap; }
+.orders-table th:nth-child(1) { width: 125px; }
+.orders-table th:nth-child(3) { width: 135px; }
+.orders-table th:nth-child(4) { width: 125px; }
+.orders-table th:nth-child(5) { width: 190px; }
+.orders-table .order-row { display: table-row; }
 .orders-table td { padding: 15px 14px; border-top: 1px solid #eeecea; vertical-align: middle; }
 .orders-table th:first-child, .orders-table td:first-child { padding-left: 20px; }
 .orders-table th:last-child, .orders-table td:last-child { padding-right: 18px; }
@@ -127,13 +132,14 @@ select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; backgrou
 .order-item-lines > span { line-height: 1.4; overflow-wrap: anywhere; }
 .order-cycle, .amount-cell small { display: block; margin-top: 6px; color: #716b67; font-size: .82rem; }
 .amount-cell { white-space: nowrap; }
-.order-actions { display: flex; align-items: center; gap: 2px; min-width: 142px; }
+.order-actions { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .order-actions .icon-button { width: 42px; height: 42px; border-radius: 10px; }
 .order-actions .icon-button:hover:not(:disabled):not(.disabled-action) { color: #d73211; background: #fff2ed; }
 .order-actions input[type="checkbox"] { width: 18px; height: 18px; margin: 0 4px; accent-color: #ee4d2d; }
 .disabled-action, .icon-button.disabled-action { color: #bdb9b6; cursor: not-allowed; }
 .order-status.partial { color: #6e4c9a; background: #f1e9fb; }
 .order-status.deleted { color: #76716e; background: #e9e7e5; }
+.order-status { white-space: nowrap; }
 
 @media (max-width: 600px) {
   .order-tools { gap: 8px; }

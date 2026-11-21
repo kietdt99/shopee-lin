@@ -63,7 +63,7 @@ export default function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState(() => new URLSearchParams(window.location.search).get('error_code') === 'otp_expired'
-    ? 'Recovery link đã hết hạn. Nhắn bé Kịt tạo link mới nhé.'
+    ? 'Liên kết khôi phục đã hết hạn. Nhắn bé Kịt tạo liên kết mới nhé.'
     : '')
   const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).has('set-password'))
   const [loading, setLoading] = useState(true)
@@ -161,7 +161,7 @@ export default function App() {
     if (!client) return
     setMessage('Đang đăng nhập…')
     const { error } = await client.auth.signInWithPassword({ email, password })
-    setMessage(error ? 'Email hoặc password chưa đúng.' : '')
+    setMessage(error ? 'Email hoặc mật khẩu chưa đúng.' : '')
   }
 
   const signInAsLocal = async (account: { label: string; email: string }) => {
@@ -183,25 +183,31 @@ export default function App() {
     })
     if (error) {
       localStorage.removeItem('shopee-lin-password-setup')
-      setMessage(error.message)
-    } else setMessage('Đã gửi link. Mở email trên browser này để đặt password một lần.')
+      setMessage(error.message.toLowerCase().includes('rate limit')
+        ? 'Đã vượt giới hạn gửi email tạm thời. Hãy thử lại sau.'
+        : 'Không gửi được liên kết kích hoạt. Hãy thử lại sau hoặc liên hệ bé Kịt.')
+    } else setMessage('Đã gửi liên kết. Mở email trên trình duyệt này để đặt mật khẩu một lần.')
   }
 
   const startPasswordReset = async () => {
     if (!client || !email) return setMessage('Nhập email trước nhé.')
-    setMessage('Đang gửi link reset password…')
+    setMessage('Đang gửi liên kết đặt lại mật khẩu…')
     const { error } = await client.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
     })
-    setMessage(error ? error.message : 'Nếu email đã được cấp quyền, link reset sẽ được gửi tới hộp thư.')
+    setMessage(error
+      ? error.message.toLowerCase().includes('rate limit')
+        ? 'Đã vượt giới hạn gửi email tạm thời. Hãy thử lại sau.'
+        : 'Không gửi được liên kết đặt lại mật khẩu. Hãy thử lại sau hoặc liên hệ bé Kịt.'
+      : 'Nếu email đã được cấp quyền, liên kết đặt lại mật khẩu sẽ được gửi tới hộp thư.')
   }
 
   const updatePassword = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!client) return
-    if (password.length < 8) return setMessage('Password cần ít nhất 8 ký tự.')
+    if (password.length < 8) return setMessage('Mật khẩu cần ít nhất 8 ký tự.')
     const { error } = await client.auth.updateUser({ password })
-    if (error) return setMessage(error.message)
+    if (error) return setMessage('Không thể cập nhật mật khẩu. Hãy thử lại hoặc liên hệ bé Kịt.')
     localStorage.removeItem('shopee-lin-password-setup')
     setPasswordSetup(false)
     setPassword('')
@@ -209,7 +215,7 @@ export default function App() {
     currentUrl.searchParams.delete('set-password')
     const cleanPath = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
     window.history.replaceState(window.history.state, '', cleanPath)
-    setMessage('Đã đặt password. Từ lần sau đăng nhập bằng email và password.')
+    setMessage('Đã đặt mật khẩu. Từ lần sau, đăng nhập bằng email và mật khẩu.')
     await loadData()
   }
 
@@ -278,7 +284,7 @@ function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }:
 
 function AccountsPanel({ accounts }: { accounts: Profile[] }) {
   const [resetting, setResetting] = useState<Profile | null>(null)
-  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Quản Lý Tài Khoản</h2></div></div><p className="hint">Tạo link dùng một lần để user đặt mật khẩu mới. Link không gửi email và hết hạn sau 5 phút.</p><section className="list-card">{accounts.length === 0 ? <p className="empty-state">Chưa có tài khoản nào.</p> : accounts.map((account) => <article className="account-row" key={account.id}><div className="order-details"><strong>{account.full_name}</strong><span>{account.email} · {account.role === 'admin' ? 'Admin' : 'Viewer'}</span></div>{account.role === 'viewer' && <button className="secondary-button" onClick={() => setResetting(account)}>Đặt Lại Mật Khẩu</button>}</article>)}</section>{resetting && <RecoveryLinkDialog account={resetting} onClose={() => setResetting(null)} />}</section>
+  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Quản Lý Tài Khoản</h2></div></div><p className="hint">Tạo liên kết dùng một lần để người dùng đặt mật khẩu mới. Liên kết không gửi email và hết hạn sau 5 phút.</p><section className="list-card">{accounts.length === 0 ? <p className="empty-state">Chưa có tài khoản nào.</p> : accounts.map((account) => <article className="account-row" key={account.id}><div className="order-details"><strong>{account.full_name}</strong><span>{account.email} · {account.role === 'admin' ? 'Admin' : 'Người Xem'}</span></div>{account.role === 'viewer' && <button className="secondary-button" onClick={() => setResetting(account)}>Đặt Lại Mật Khẩu</button>}</article>)}</section>{resetting && <RecoveryLinkDialog account={resetting} onClose={() => setResetting(null)} />}</section>
 }
 
 function RecoveryLinkDialog({ account, onClose }: { account: Profile; onClose: () => void }) {
@@ -320,7 +326,7 @@ function RecoveryLinkDialog({ account, onClose }: { account: Profile; onClose: (
     }
   }
 
-  return <Dialog title="Đặt Lại Mật Khẩu" onClose={onClose}><div className="form-stack"><p>Tài khoản: <strong>{account.full_name}</strong> · {account.email}</p>{!link && <><p className="hint">Tạo link đặt lại mật khẩu dùng một lần. Link không gửi email; hãy gửi riêng cho user.</p><button className="primary-button" type="button" disabled={loading} onClick={() => void createLink()}>{loading ? 'Đang tạo liên kết…' : 'Tạo Liên Kết'}</button></>}{error && <p className="form-message">{error}</p>}{link && <><label>Liên Kết Khôi Phục<input readOnly value={link} onFocus={(event) => event.currentTarget.select()} /></label><div className="recovery-link-actions"><span className={remaining === 0 ? 'expired' : 'hint'}>{remaining === 0 ? 'Liên kết đã hết hạn' : `Hết hạn sau ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}</span><button className="primary-button compact" type="button" disabled={remaining === 0} onClick={() => void copyLink()}>{copied ? 'Đã Sao Chép' : 'Sao Chép Liên Kết'}</button></div><p className="hint">Gửi liên kết riêng cho user. Liên kết chỉ dùng một lần; khi mở, user sẽ đặt mật khẩu mới. Đóng cửa sổ sẽ xóa liên kết khỏi app.</p></>}</div></Dialog>
+  return <Dialog title="Đặt Lại Mật Khẩu" onClose={onClose}><div className="form-stack"><p>Tài khoản: <strong>{account.full_name}</strong> · {account.email}</p>{!link && <><p className="hint">Tạo liên kết đặt lại mật khẩu dùng một lần. Liên kết không gửi email; hãy gửi riêng cho người dùng.</p><button className="primary-button" type="button" disabled={loading} onClick={() => void createLink()}>{loading ? 'Đang tạo liên kết…' : 'Tạo Liên Kết'}</button></>}{error && <p className="form-message">{error}</p>}{link && <><label>Liên Kết Khôi Phục<input readOnly value={link} onFocus={(event) => event.currentTarget.select()} /></label><div className="recovery-link-actions"><span className={remaining === 0 ? 'expired' : 'hint'}>{remaining === 0 ? 'Liên kết đã hết hạn' : `Hết hạn sau ${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`}</span><button className="primary-button compact" type="button" disabled={remaining === 0} onClick={() => void copyLink()}>{copied ? 'Đã Sao Chép' : 'Sao Chép Liên Kết'}</button></div><p className="hint">Gửi liên kết riêng cho người dùng. Liên kết chỉ dùng một lần; khi mở, người dùng sẽ đặt mật khẩu mới. Đóng cửa sổ sẽ xóa liên kết khỏi ứng dụng.</p></>}</div></Dialog>
 }
 
 function DisplayNameDialog({ profile, onClose, onSaved }: { profile: Profile; onClose: () => void; onSaved: () => Promise<void> }) {

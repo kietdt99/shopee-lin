@@ -1,7 +1,10 @@
 """Generate idempotent SQL for the one-time Shopee Lin workbook migration."""
 import sys
 import uuid
+import io
+from contextlib import redirect_stdout
 from datetime import date, datetime
+from pathlib import Path
 
 import openpyxl
 
@@ -63,10 +66,8 @@ def canonical_description(value):
     return " ".join(str(value).split())
 
 
-def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: python scripts/import_legacy.py <workbook.xlsx>")
-    workbook = openpyxl.load_workbook(sys.argv[1], data_only=True)
+def generate_sql(workbook_path):
+    workbook = openpyxl.load_workbook(workbook_path, data_only=True)
     orders, payments = [], []
     for sheet in workbook.worksheets:
         if sheet.title == "Góp S25U":
@@ -191,6 +192,28 @@ def main():
         print(f"insert into public.installment_payments (id,plan_id,paid_at,amount,note) values ('{iid}','{plan_id}','{paid_at}',{amount},'Lần góp lịch sử') on conflict (id) do nothing;")
     print("commit;")
     print(f"-- Reconciled: {len(orders)} purchases={total_orders:,}; payments={total_paid:,}; opening credit={opening['amount']:,}; debt={EXPECTED_DEBT:,}; S25U={installment_total:,}, paid={installment_paid:,}, remaining={installment_remaining:,}")
+
+
+def main():
+    args = sys.argv[1:]
+    output_path = None
+    if len(args) == 1:
+        workbook_path = args[0]
+    elif len(args) == 3 and args[1] == "--output":
+        workbook_path, output_path = args[0], args[2]
+    else:
+        raise SystemExit("Usage: python scripts/import_legacy.py <workbook.xlsx> [--output <sql-file>]")
+
+    if output_path:
+        generated = io.StringIO()
+        with redirect_stdout(generated):
+            generate_sql(workbook_path)
+        target = Path(output_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(generated.getvalue(), encoding="utf-8", newline="\n")
+        print(f"Generated UTF-8 SQL at {target}")
+    else:
+        generate_sql(workbook_path)
 
 
 if __name__ == "__main__":
