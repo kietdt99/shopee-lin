@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, CircleX, CreditCard, Eye, LogOut, Package, Plus, ReceiptText, RotateCcw, Search, Smartphone, Pencil, Trash2, Users } from 'lucide-react'
+import { CheckCircle2, ChevronDown, CircleX, CreditCard, Eye, LogOut, Package, Plus, ReceiptText, RotateCcw, Search, Smartphone, Pencil, Trash2, Users } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -389,6 +389,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const [busy, setBusy] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
+  const [cycleSearch, setCycleSearch] = useState('')
   const [pendingCycles, setPendingCycles] = useState<string[]>([])
   const [pendingStatuses, setPendingStatuses] = useState<OrderFilterStatus[]>([])
   const [appliedCycles, setAppliedCycles] = useState<string[]>([])
@@ -409,6 +410,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const cycleLabels = new Map(cycles.map((cycle) => [cycle.id, cycle.label]))
   const statusLabels: Record<OrderFilterStatus, string> = { unpaid: 'Chưa Trả', partial: 'Trả Một Phần', paid: 'Đã Trả', cancelled: 'Đã Hủy', deleted: 'Đã Xóa' }
   const statuses = [...new Set(orders.map(statusFor))]
+  const matchingCycles = cycles.filter((cycle) => cycle.label.toLocaleLowerCase('vi').includes(cycleSearch.trim().toLocaleLowerCase('vi')))
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = !appliedSearch || order.description.toLocaleLowerCase('vi').includes(appliedSearch.toLocaleLowerCase('vi'))
     const matchesCycle = appliedCycles.length === 0 || appliedCycles.includes(order.billing_cycle_id ?? '')
@@ -421,6 +423,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const applyFilters = (event: React.MouseEvent<HTMLButtonElement>) => {
     setAppliedCycles(pendingCycles)
     setAppliedStatuses(pendingStatuses)
+    setCycleSearch('')
     event.currentTarget.closest('details')?.removeAttribute('open')
   }
   const markPaid = async () => {
@@ -466,9 +469,9 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         <button className="icon-button search-submit" type="submit" aria-label="Tìm Kiếm" title="Tìm Kiếm"><Search size={19} /></button>
       </form>
       <details className="order-filter">
-        <summary>Bộ Lọc</summary>
+        <summary>Bộ Lọc<ChevronDown className="filter-chevron" size={16} aria-hidden="true" /></summary>
         <div className="order-filter-menu">
-          <fieldset><legend>Kỳ Sổ</legend>{cycles.map((cycle) => <label className="filter-option" key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} />{cycle.label}</label>)}</fieldset>
+          <fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option" key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} />{cycle.label}</label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset>
           <fieldset><legend>Trạng Thái</legend>{Object.entries(statusLabels).filter(([value]) => statuses.includes(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleValue(pendingStatuses, value as OrderFilterStatus, setPendingStatuses)} />{label}</label>)}</fieldset>
           <button type="button" className="primary-button compact" onClick={applyFilters}>Áp Dụng Bộ Lọc</button>
         </div>

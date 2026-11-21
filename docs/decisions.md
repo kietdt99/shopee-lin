@@ -72,7 +72,7 @@ An order may store a validated Shopee purchase URL. Admin can open it using the 
 
 ## 2026-11-22 — Orders table scan and required fields
 
-Put the selection checkbox before the order date, and show billing cycle in its own column after amount so long descriptions remain readable. Mark required order fields (description, date, and amount) with an asterisk in both create and edit dialogs; keep Shopee URL explicitly optional.
+Put the selection checkbox before the order date, and show billing cycle in its own column after amount so long descriptions remain readable. Mark required order fields (description, date, and amount) with an asterisk in both create and edit dialogs; keep Shopee URL explicitly optional. Use a ChevronDown icon for the cycle/status filter control. The billing-cycle choices use a searchable, fixed-height scroll area and still require the explicit Apply Filter action.
 
 ## 2026-11-22 — Private user avatars
 
