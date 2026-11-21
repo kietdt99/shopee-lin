@@ -19,6 +19,13 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 .form-message { margin: 16px 0 0; color: #665f5b; font-size: .9rem; }
 .auth-links { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
 .auth-links .text-button { color: #b93820; text-decoration: underline; text-underline-offset: 3px; }
+.local-login-picker { border-top: 1px solid #f0eeec; margin-top: 20px; padding-top: 16px; }
+.local-login-title { margin-bottom: 10px; font-weight: 750; }
+.local-login-options { display: grid; gap: 8px; }
+.local-login-option { display: grid; gap: 3px; width: 100%; padding: 11px 12px; border: 1px solid #e7e5e4; border-radius: 11px; color: #262626; background: #fff; text-align: left; }
+.local-login-option:hover, .local-login-option:focus-visible { border-color: #ee4d2d; background: #fff7f3; outline-color: #ee4d2d; }
+.local-login-option span, .local-login-hint { color: #78716c; font-size: .82rem; }
+.local-login-hint { margin: 9px 0 0; }
 .app-shell { max-width: 920px; margin: 0 auto; padding: 24px 18px 48px; }
 .topbar, .section-heading, .page-heading, .dialog-heading, .selection-bar, .order-row, .installment-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .topbar h1 { margin: 0; font-size: 1.55rem; }

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "supabase:local:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/start-local-supabase.ps1",
+    "supabase:local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/stop-local-supabase.ps1",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "test:e2e": "playwright test",
@@ -21,6 +23,7 @@
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "supabase": "3.2.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   }

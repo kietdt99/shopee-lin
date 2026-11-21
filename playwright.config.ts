@@ -46,8 +46,11 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
       env: {
-        VITE_SUPABASE_URL: 'https://playwright-test.supabase.co',
+        VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_playwright_test_key',
+        VITE_LOCAL_ADMIN_EMAIL: 'tuankiet141199@gmail.com',
+        VITE_LOCAL_VIEWER_EMAIL: 'tuankiet141199+lin-test@gmail.com',
+        VITE_LOCAL_DEV_PASSWORD: 'Shopee-Lin-Local-Only-2026',
         VITE_PAYEE_NAME: 'Bé Kịt Thần Kỳ',
         VITE_PAYEE_ACCOUNT: '0000000000',
         VITE_PAYEE_BANK: 'TPB',

@@ -89,23 +89,26 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
   let nextId = 1
   const newId = () => `00000000-0000-4000-8000-${String(nextId++).padStart(12, '0')}`
 
-  await page.route('https://playwright-test.supabase.co/**', async (route) => {
+  await page.route(/https:\/\/playwright-test\.supabase\.co\/.*|http:\/\/127\.0\.0\.1:54321\/.*$/, async (route) => {
     const request = route.request()
     const url = new URL(request.url())
     const method = request.method()
     const body = request.postData() ? request.postDataJSON() : null
-    if (url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/functions/v1/')) {
+    if (url.pathname.startsWith('/auth/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/functions/v1/')) {
       state.requests.push({ method, path: url.pathname, query: url.search, body })
     }
 
     if (url.pathname === '/auth/v1/token' && request.method() === 'POST') {
       const body = request.postDataJSON() as { email?: string; password?: string }
       const expectedEmail = role === 'admin' ? 'admin@example.test' : 'viewer@example.test'
-      if (body.email !== expectedEmail || body.password !== 'test-password') {
+      const localAccountEmail = role === 'admin' ? 'tuankiet141199@gmail.com' : 'tuankiet141199+lin-test@gmail.com'
+      const regularLogin = body.email === expectedEmail && body.password === 'test-password'
+      const localQuickLogin = body.email === localAccountEmail && body.password === 'Shopee-Lin-Local-Only-2026'
+      if (!regularLogin && !localQuickLogin) {
         await route.fulfill({ status: 400, json: { code: 'invalid_credentials', msg: 'Invalid login credentials' } })
         return
       }
-      await route.fulfill({ status: 200, json: authSession })
+      await route.fulfill({ status: 200, json: { ...authSession, user: { ...user, email: body.email } } })
       return
     }
 
