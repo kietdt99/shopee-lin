@@ -253,6 +253,62 @@ test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ 
   expect(update?.body).toMatchObject({ p_description: 'Order on May 20', p_placed_at: '2026-05-20', p_amount: 135000, p_billing_cycle_id: mayCycle.id })
 })
 
+test('Orders table puts selection first, shows cycle after amount, and marks required fields', async ({ page, expectNoHorizontalOverflow }) => {
+  const longHistory = Array.from({ length: 24 }, (_, index) => {
+    const month = (index % 12) + 1
+    const year = index < 12 ? 2025 : 2027
+    const label = `${String(month).padStart(2, '0')}.${year}`
+    return { id: `cycle-${label}`, label, starts_on: '2025-01-21', ends_on: '2025-02-20', opening_balance: 0, status: 'open' as const }
+  })
+  const mock = await mockSupabase(page, 'admin', {
+    orders: [
+      { id: 'order-may-layout', description: 'May layout order', placed_at: '2026-05-19', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id },
+      { id: 'order-june-layout', description: 'June layout order', placed_at: '2026-05-22', amount: 2000, status: 'unpaid', billing_cycle_id: juneCycle.id },
+    ],
+    cycles: [mayCycle, juneCycle, ...longHistory],
+  })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+
+  expect(await page.locator('.orders-table thead th').allTextContents()).toEqual(['Chọn', 'Ngày', 'Đơn Hàng', 'Số Tiền', 'Kỳ', 'Trạng Thái', 'Hành Động'])
+  const mayRow = page.locator('.order-row').filter({ hasText: 'May layout order' })
+  await expect(mayRow.locator('td').nth(0).getByRole('checkbox')).toBeVisible()
+  await expect(mayRow.locator('td').nth(1)).toHaveAttribute('data-label', 'Ngày')
+  await expect(mayRow.locator('td').nth(3)).toContainText('1.000')
+  await expect(mayRow.locator('td').nth(4)).toContainText('05.2026')
+
+  await page.getByRole('button', { name: 'Thêm Đơn' }).click()
+  const createDialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
+  await expect(createDialog.locator('.required-marker')).toHaveCount(3)
+  for (const label of ['Mô Tả Đơn Hàng', 'Ngày Đặt', 'Số Tiền (VND)']) await expect(createDialog.getByLabel(label)).toHaveAttribute('required', '')
+  await expect(createDialog.getByLabel('Đơn Hàng Shopee (Không Bắt Buộc)')).not.toHaveAttribute('required', '')
+  await createDialog.getByRole('button', { name: 'Đóng' }).click()
+
+  await mayRow.getByRole('button', { name: 'Sửa Đơn' }).click()
+  const editDialog = page.getByRole('dialog', { name: 'Sửa Đơn Hàng' })
+  await expect(editDialog.locator('.required-marker')).toHaveCount(3)
+  for (const label of ['Mô Tả Đơn Hàng', 'Ngày Đặt', 'Số Tiền (VND)']) await expect(editDialog.getByLabel(label)).toHaveAttribute('required', '')
+  await expect(editDialog.getByLabel('Đơn Hàng Shopee (Không Bắt Buộc)')).not.toHaveAttribute('required', '')
+  await editDialog.getByRole('button', { name: 'Đóng' }).click()
+
+  await page.locator('.order-filter summary').click()
+  await expect(page.locator('.order-filter summary')).toHaveText('Bộ Lọc')
+  await expect(page.locator('.filter-chevron')).toHaveCount(1)
+  const cycleList = page.locator('.cycle-filter-list')
+  expect(await cycleList.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  const cycleSearch = page.getByLabel('Tìm Kỳ Sổ')
+  await cycleSearch.fill('05.2026')
+  await expect(cycleList.locator('.filter-option')).toHaveCount(1)
+  await page.getByLabel('05.2026').check()
+  await expect(page.locator('.order-row')).toHaveCount(2)
+  await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
+  await expect(page.locator('.order-row')).toHaveCount(1)
+  await expect(page.locator('.order-row').first()).toContainText('May layout order')
+
+  expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
+  await expectNoHorizontalOverflow()
+})
+
 test('Order search applies on Enter or the search button, and filters stage until Apply', async ({ page, expectNoHorizontalOverflow }) => {
   const orders: MockOrder[] = [
     { id: '11111111-1111-4111-8111-111111111111', description: 'Chè dưỡng nhan', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id },
@@ -270,7 +326,7 @@ test('Order search applies on Enter or the search button, and filters stage unti
   const rows = page.locator('.order-row')
   await expect(rows).toHaveCount(3)
   await expect(rows.first()).not.toContainText(orders[0].id)
-  await expect(page.locator('.order-row').filter({ hasText: 'Chè dưỡng nhan' })).toContainText('Kỳ 05.2026')
+  await expect(page.locator('.order-row').filter({ hasText: 'Chè dưỡng nhan' }).locator('td').nth(4)).toContainText('05.2026')
 
   const search = page.getByLabel('Tìm Kiếm Đơn Hàng')
   await search.fill('sen')
