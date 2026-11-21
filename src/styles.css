@@ -26,7 +26,7 @@ input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-ra
 .local-login-option:hover, .local-login-option:focus-visible { border-color: #ee4d2d; background: #fff7f3; outline-color: #ee4d2d; }
 .local-login-option span, .local-login-hint { color: #78716c; font-size: .82rem; }
 .local-login-hint { margin: 9px 0 0; }
-.app-shell { width: min(1480px, 100%); min-height: 100vh; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 32px; }
+.app-shell { width: min(2048px, 100%); min-height: 100vh; margin: 0 auto; padding: 24px; display: grid; grid-template-columns: 232px minmax(0, 1fr); gap: 32px; }
 .sidebar { position: sticky; top: 24px; align-self: start; display: grid; gap: 28px; }
 .brand-link { display: inline-flex; align-items: center; gap: 10px; justify-self: start; border: 0; padding: 4px 8px 4px 0; color: #262626; background: transparent; font-size: 1.35rem; font-weight: 850; letter-spacing: -.04em; }
 .brand-mark { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 11px 11px 11px 4px; color: #fff; background: #ee4d2d; font-size: 1.2rem; font-style: italic; font-weight: 900; letter-spacing: -.08em; }

@@ -94,3 +94,8 @@ Once an order has any payment allocation, its amount, placed date, and billing c
 
 Local development uses an isolated Supabase stack with seeded Admin and Viewer-test Auth users. The login shortcuts appear only in Vite development when the configured Supabase API is loopback on port 54321. They authenticate against local Supabase using a local-only password; production builds and hosted Supabase URLs never show the shortcuts. Local test accounts use the same allowlisted emails to exercise the real role trigger and RLS, but local data and passwords are separate from production. The stack starts from the checked-in schema snapshot in a generated, ignored local workspace so it does not replay the unresolved hosted migration history.
 
+
+## 2026-11-22 — Wide desktop content frame
+
+Cap the centered application shell at 2048px instead of 1480px. This uses large desktop displays more effectively while preserving a centered frame and the existing 900px tablet/mobile layout behavior.
+
