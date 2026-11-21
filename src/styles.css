@@ -107,12 +107,17 @@ select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; backgrou
 .order-search input { padding-right: 52px !important; }
 .search-submit { position: absolute; inset: 2px 2px 2px auto; width: 42px; color: #ee4d2d; border-radius: 9px; }
 .order-filter { position: relative; flex: none; }
-.order-filter > summary { min-height: 46px; padding: 12px 16px; border: 1px solid #dedad7; border-radius: 11px; color: #4b4541; background: #fff; font-weight: 700; cursor: pointer; list-style: none; }
+.order-filter > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 12px 16px; border: 1px solid #dedad7; border-radius: 11px; color: #4b4541; background: #fff; font-weight: 700; cursor: pointer; list-style: none; }
 .order-filter > summary::-webkit-details-marker { display: none; }
-.order-filter > summary::after { content: '⌄'; margin-left: 10px; color: #716b67; }
+.filter-chevron { flex: none; color: #716b67; transition: transform .16s ease; }
+.order-filter[open] > summary .filter-chevron { transform: rotate(180deg); }
 .order-filter-menu { position: absolute; top: calc(100% + 8px); right: 0; width: min(340px, calc(100vw - 28px)); max-height: min(72vh, 560px); overflow: auto; display: grid; gap: 16px; padding: 18px; border: 1px solid #e7e5e4; border-radius: 16px; background: #fff; box-shadow: 0 16px 40px rgba(0,0,0,.16); }
 .order-filter-menu fieldset { min-width: 0; margin: 0; padding: 0; border: 0; display: flex; flex-wrap: wrap; gap: 8px 14px; }
 .order-filter-menu legend { margin-bottom: 9px; font-weight: 800; }
+.order-filter-menu .cycle-filter-fieldset { display: grid; gap: 8px; }
+.cycle-filter-search { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #dedad7; border-radius: 9px; background: #fff; }
+.cycle-filter-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 8px 10px; max-height: 168px; overflow: auto; overscroll-behavior: contain; padding: 2px; }
+.cycle-filter-empty { margin: 0; color: #716b67; font-size: .86rem; }
 .filter-option { display: inline-flex; align-items: center; gap: 7px; font-size: .9rem; font-weight: 500; }
 .filter-option input { width: 17px; height: 17px; accent-color: #ee4d2d; }
 .orders-list { padding: 0; overflow: hidden; }
