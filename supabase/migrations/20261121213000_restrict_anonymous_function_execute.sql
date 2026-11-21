@@ -4,8 +4,12 @@
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 revoke all on function public.reject_closed_cycle_order_write() from public, anon, authenticated;
 -- Supabase's event-trigger helper remains callable by its owner/event trigger;
--- it is not a client RPC and needs no client-role EXECUTE grants.
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+-- it is optional and needs no client-role EXECUTE grants when present.
+do $$ begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke all on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end $$;
 
 -- Legacy full-payment RPC is not used by the app. Keep it unavailable to both
 -- client roles; retain the service_role grant supplied by project defaults.

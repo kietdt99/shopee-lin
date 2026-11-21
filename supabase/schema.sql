@@ -324,7 +324,11 @@ create policy "admin manages cycle closings" on public.cycle_closings for all to
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 revoke all on function public.reject_closed_cycle_order_write() from public, anon, authenticated;
 -- Supabase's event-trigger helper needs no client-role EXECUTE grants.
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+do $$ begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    execute 'revoke all on function public.rls_auto_enable() from public, anon, authenticated';
+  end if;
+end $$;
 revoke all on function public.record_full_order_payment(uuid[], date, text) from public, anon, authenticated;
 
 revoke all on function public.is_admin() from public, anon;
