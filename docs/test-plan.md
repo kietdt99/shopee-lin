@@ -24,10 +24,11 @@ Automated ledger scenarios use mocked order/payment/cycle data and assert the UI
 
 - [ ] Run the app locally against the intended Supabase project and confirm the URL uses the project root, not `/rest/v1/`.
 - [ ] Confirm required database migrations are applied, including ledger/report and profile display-name migrations.
-- [ ] Confirm local and GitHub Pages callback URLs are in Supabase Auth's redirect allowlist.
-- [ ] Confirm GitHub Actions variables exist for Supabase URL/publishable key and VietQR recipient name, account, and bank.
-- [ ] For Admin recovery-link testing, confirm the Edge Function is deployed and Auth Email OTP expiry is 300 seconds. This is a project-wide setting that also shortens activation and self-service recovery links.
+- [x] Confirm local and GitHub Pages callback URLs are in Supabase Auth's redirect allowlist (verified with Supabase CLI config diff after the production update).
+- [x] Confirm GitHub Actions variables exist for Supabase URL/publishable key and VietQR recipient name, account, and bank.
+- [x] Confirm the Admin recovery Edge Function is deployed with JWT verification enabled and Auth Email OTP expiry is configured to 300 seconds. This is a project-wide setting that also shortens activation and self-service recovery links.
 - [ ] Use the Admin, Viewer test alias, and Bé Lin accounts. Keep recovery links and passwords out of test notes and screenshots.
+- Supabase's built-in email provider is limited to two emails per hour. Reserve sends for the Admin and Bé Lin production accounts; do not request new activation or recovery emails for the already-confirmed Viewer test account or for QA.
 
 ## Responsive layout and navigation
 
@@ -114,7 +115,7 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 
 - [ ] Complete manual checks above on local Supabase-backed UI at mobile and desktop widths; record failures and retest fixes.
 - [ ] Run the documented production build and ensure it succeeds. Do not release with unresolved TypeScript/build errors.
-- [ ] Verify database migrations, RLS policies, Auth redirects, recovery expiry (if enabled), QR variables, and GitHub Pages Actions configuration against production.
+- [ ] Verify live Viewer API/RPC write denial and real Auth/recovery flows; reconcile database migration history; smoke-test production QR, reports, login, and role visibility after deployment. Auth redirects/OTP configuration, Edge Function deployment, RLS catalog policies, QR Actions variables, and Pages workflow configuration have been checked, but the Pages URL currently returns 404 because no release deployment has run.
 - [ ] Merge feature branches into `main`; cut `release/vX.Y.Z` from the reviewed `main` commit. Do not add features to a release branch.
 - [ ] Deploy only from the immutable release branch, smoke-test the production login, role visibility, debt totals, QR, reports, and a safe recovery flow, then tag the release.
 - [ ] Ensure no `.env*` secrets, Supabase secret keys, credentials, or personal payment evidence are included in the release.
