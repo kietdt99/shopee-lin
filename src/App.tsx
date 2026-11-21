@@ -243,17 +243,17 @@ export default function App() {
           <TabButton active={tab === 'reports'} onClick={() => setTab('reports')} icon={<ReceiptText size={18} />} label="Báo Cáo" />
           {isAdmin && <TabButton active={tab === 'accounts'} onClick={() => setTab('accounts')} icon={<Users size={18} />} label="Tài Khoản" />}
         </nav>
-      </aside>
-
-      <div className="main-area">
-        <header className="topbar">
+        <div className="sidebar-footer">
           <div className="profile-chip">
             <span className="profile-name">{profile.full_name}</span>
             <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa Hồ Sơ" title="Sửa Hồ Sơ"><Pencil size={16} /></button>
             <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
           </div>
-        </header>
+          <span className="app-version">v0.1.0</span>
+        </div>
+      </aside>
 
+      <div className="main-area">
         {tab === 'overview' && <Overview outstanding={outstanding} paid={paidThisList} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
       {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} cycles={cycles} isAdmin={isAdmin} onUpdated={loadData} />}
         {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}

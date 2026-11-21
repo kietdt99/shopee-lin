@@ -1,5 +1,9 @@
 # Implementation notes
 
+## 2026-11-22
+
+- Expanded the desktop content frame to 2048px, separated the left navigation into a bordered white panel, moved profile edit/sign-out controls to its footer, and added the `v0.1.0` label below. QA viewport targets: 2560×1440, 1920×1080, 360×780, and 384×832; actual device/browser scaling still needs owner spot-check.
+
 ## 2026-11-21
 
 - Playwright E2E smoke tests run with `pnpm test:e2e` using isolated fake Supabase URLs and network mocks. Desktop and mobile Chromium coverage includes login errors, Admin recovery-link UI, Viewer read-only navigation, reports/installments/QR, horizontal overflow, self display-name editing, Admin order create/edit/delete with 20th/21st and year-rollover cycle assignment, partial payment across multiple orders with over-allocation rejection, paid-order cancellation/refund, Excel-compatible export content, and print action/layout. Tests do not prove live RLS, real Auth token behavior, or persisted ledger integrity; see `docs/test-plan.md` for separate release QA.

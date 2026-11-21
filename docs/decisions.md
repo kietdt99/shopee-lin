@@ -99,3 +99,7 @@ Local development uses an isolated Supabase stack with seeded Admin and Viewer-t
 
 Cap the centered application shell at 2048px instead of 1480px. This uses large desktop displays more effectively while preserving a centered frame and the existing 900px tablet/mobile layout behavior.
 
+## 2026-11-22 — Sidebar panel and footer
+
+Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Move profile edit and sign-out controls into the bottom of the sidebar, with the `v0.1.0` label below them. At mobile widths, preserve horizontal tabs and show the profile/version row inside the compact navigation panel.
+
