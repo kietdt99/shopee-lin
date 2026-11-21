@@ -2,6 +2,8 @@
 
 ## 2026-11-21
 
+- Playwright E2E smoke tests run with `pnpm test:e2e` using isolated fake Supabase URLs and network mocks. Coverage currently targets login errors, Admin recovery-link UI, Viewer read-only navigation, reports/installments/QR, and horizontal overflow in desktop and mobile Chromium. Tests do not prove live RLS or real Auth token behavior; see `docs/test-plan.md` for separate release QA.
+
 - Supabase project URL must be the project root URL, not the `/rest/v1/` endpoint.
 - Use only the Supabase publishable key in the browser. Never use a secret key in this application.
 - Historical Excel dates are mixed between text and spreadsheet date cells. Import needs a review step before data is marked final.
