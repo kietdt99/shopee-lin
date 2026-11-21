@@ -177,7 +177,7 @@ export default function App() {
           <h1>Bé Lin</h1>
         </div>
         <div className="profile-chip">
-          <span>{profile.full_name}</span>
+          <span className="profile-name">{profile.full_name}</span>
           <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa display name" title="Sửa display name"><Pencil size={16} /></button>
           <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
         </div>
