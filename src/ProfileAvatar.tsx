@@ -55,7 +55,7 @@ export function ProfileAvatar({ userId, avatarPath, displayName, onPathChange }:
       upsert: false,
     })
     setUploading(false)
-    if (uploadError) return setError(uploadError.message || 'Không tải được ảnh lên.')
+    if (uploadError) return setError('Không tải được ảnh đại diện lên. Hãy thử lại với ảnh JPEG, PNG hoặc WebP nhỏ hơn 2 MB.')
     onPathChange(path)
 
     const { data, error: signedUrlError } = await supabase.storage.from('profile-avatars').createSignedUrl(path, 1800)

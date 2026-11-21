@@ -4,8 +4,10 @@ This backlog records the state of the Orders and data-safety release work as of 
 
 ## Current branch status
 
-- Feature implementation: `feature/orders-management`, based on `b3b22fb` with local bootstrap/docs/UI follow-up changes pending commit.
-- Test-only work: `test/orders-management`, based on `b3b22fb`; QA changes are isolated from application code.
+- Feature implementation commit: `26b8527` on `feature/orders-management`.
+- Test-only commit: `fba15b6` on `test/orders-management`; its changes touch tests, test config, and the QA plan only.
+- Both branches have been merged locally into `main`; integration commits are `39511f6` and `fe51b8a`.
+- Local `main` is 6 commits ahead of `origin/main` after this local completion commit; it has not been pushed, and no PR, deployment, or tag was created.
 - Local Vite app: `http://localhost:5173/`.
 - Local Supabase: running at loopback only. It uses its own database and local Auth users; no hosted Supabase credentials are used by the app.
 - No app data, migration, or deployment was changed on hosted production during this pass.
@@ -19,7 +21,7 @@ This backlog records the state of the Orders and data-safety release work as of 
 - [x] Reversible soft-delete for eligible unpaid orders; restore action; no direct `DELETE` privilege on any of the nine app tables. Allocated/paid orders use cancellation/refund while preserving the ledger.
 - [x] Installment plan creation and dated contributions with a database-enforced total cap.
 - [x] Admin-only Account tab for generating a temporary recovery link, and Hồ Sơ dialog with self-editable display name, read-only email, private avatar upload, and one Save Changes action.
-- [x] Authentication, role-sensitive UI, and RLS/RPC guards; backend errors in login/password flows now use Vietnamese user-facing copy.
+- [x] Authentication, role-sensitive UI, and RLS/RPC guards; login, password, order/payment, and avatar Storage errors use Vietnamese user-facing fallbacks.
 - [x] Local Admin and Tester one-click login exists only in Vite development against loopback Supabase.
 - [x] Common UI labels, font sizing, alignment, and table layouts were reviewed on desktop/mobile. The table's desktop flex-row collision was fixed; the data table no longer overflows horizontally at the verified desktop viewport.
 
@@ -41,7 +43,7 @@ This backlog records the state of the Orders and data-safety release work as of 
 - [x] Cover multi-order/partial payment allocation and overpayment rejection; cancellation/refund; cycle close/reopen UI; export and print actions.
 - [x] Cover profile email read-only, avatar validation/upload preview, installment creation/contributions/limits/history, and account role affordances.
 - [x] Run at 1280 px desktop and 390 px / 320 px mobile; no horizontal overflow in covered pages.
-- [x] `pnpm test:e2e`: 77 passed. `pnpm build`: passed. `git diff --check`: clean.
+- [x] Final integrated local `main` verification after copy changes: `pnpm test:e2e` 77/77 (32.7s), `pnpm build` passed (1,628 modules), `git diff --check` clean.
 - [x] QA report: no P0–P3 product defects in the mocked Playwright suite. Mocks do not prove database, Auth, Storage, or production behavior.
 
 ## Remaining release gates
@@ -50,7 +52,7 @@ This backlog records the state of the Orders and data-safety release work as of 
 - [ ] Verify private avatar Storage ownership against authenticated local Supabase, including cross-user read denial.
 - [ ] Verify live local financial invariants/concurrency for order edits, payment allocation, refunds, cycle close/reopen, and concurrent installment contributions with isolated rollback-safe fixtures.
 - [ ] Reconcile Supabase migration history before using CLI-managed production migrations; do not run `db push` blindly against the legacy date-only migration files.
-- [ ] Review/merge the feature branch and test-only branch into `main` under the repository branch protections. Do not modify the existing immutable release branch with feature code.
+- [ ] Push the locally integrated `main` commits and complete the repository's protected-branch review/check workflow. Do not modify the existing immutable release branch with feature code.
 - [ ] Choose the next release version from the reviewed `main`, deploy only from an immutable `release/vX.Y.Z`, run production smoke checks, and tag only after the authenticated gates pass.
 - [ ] Confirm release artifacts contain no `.env*` values, service-role/secret keys, credentials, local database passwords, recovery links, or personal payment evidence.
 

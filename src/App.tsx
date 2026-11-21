@@ -273,7 +273,7 @@ function ConfigurationNotice() {
 
 function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { label: string; email: string }[]; onLoginAsLocal: (account: { label: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
   if (localAccounts.length > 0) {
-    return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Local</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Local"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.label === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.label}</strong><span>{account.email}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase local; không đăng nhập vào production.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
+    return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.label === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.label}</strong><span>{account.email}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
   }
   return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và mật khẩu.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
 }
@@ -304,7 +304,7 @@ function RecoveryLinkDialog({ account, onClose }: { account: Profile; onClose: (
     const redirectUrl = `${window.location.origin}${import.meta.env.BASE_URL}`
     const { data, error: invokeError } = await supabase.functions.invoke('admin-reset-password-link', { body: { targetUserId: account.id, redirectUrl } })
     setLoading(false)
-    if (invokeError) return setError(invokeError.message)
+    if (invokeError) return setError('Không thể tạo liên kết khôi phục. Hãy thử lại hoặc liên hệ bé Kịt.')
     setLink(data.actionLink as string)
     setExpiresAt(Date.parse(data.expiresAt as string))
   }
@@ -340,7 +340,7 @@ function DisplayNameDialog({ profile, onClose, onSaved }: { profile: Profile; on
     setSaving(true)
     const { error: updateError } = await supabase.rpc('update_my_profile', { p_display_name: displayName.trim(), p_avatar_path: avatarPath })
     setSaving(false)
-    if (updateError) return setError(updateError.message)
+    if (updateError) return setError('Không thể lưu hồ sơ. Hãy kiểm tra thông tin rồi thử lại.')
     await onSaved()
     onClose()
   }
@@ -431,7 +431,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
     if (amount === null || amount <= 0) return window.alert('Nhập số tiền VND là số nguyên dương; không dùng số âm hoặc phần thập phân.')
     setBusy(true)
     const { error } = await supabase.rpc('record_order_payment', { p_order_ids: selectedOrders.map((order) => order.id), p_amount: amount, p_paid_at: today, p_note: 'Admin xác nhận thanh toán' })
-    if (error) window.alert(error.message)
+    if (error) window.alert('Không thể ghi nhận thanh toán. Hãy kiểm tra số tiền và các đơn đã chọn rồi thử lại.')
     else setSelected([])
     setBusy(false)
     await onUpdated()
@@ -439,13 +439,13 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const softDeleteOrder = async (order: Order) => {
     if (!supabase || !window.confirm(`Đánh dấu đơn “${order.description}” là Đã Xóa? Có thể khôi phục lại sau.`)) return
     const { error } = await supabase.rpc('soft_delete_order', { p_order_id: order.id })
-    if (error) window.alert(error.message)
+    if (error) window.alert('Không thể đánh dấu đơn đã xóa. Hãy kiểm tra trạng thái đơn và kỳ sổ rồi thử lại.')
     else { setSelected((current) => current.filter((id) => id !== order.id)); await onUpdated() }
   }
   const restoreOrder = async (order: Order) => {
     if (!supabase || !window.confirm(`Khôi phục đơn “${order.description}”?`)) return
     const { error } = await supabase.rpc('restore_deleted_order', { p_order_id: order.id })
-    if (error) window.alert(error.message); else await onUpdated()
+    if (error) window.alert('Không thể khôi phục đơn. Hãy kiểm tra trạng thái kỳ sổ rồi thử lại.'); else await onUpdated()
   }
   const cancelOrder = async (order: Order) => {
     if (!supabase || !window.confirm(`Hủy đơn “${order.description}”?`)) return
@@ -455,7 +455,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
     const refunded = parseVndInput(refundInput)
     if (refunded === null || refunded < 0 || refunded > allocated) return window.alert('Số tiền hoàn phải là số nguyên không âm và không vượt quá tiền đã phân bổ.')
     const { error } = await supabase.rpc('cancel_order', { p_order_id: order.id, p_refund_amount: refunded, p_note: `Hoàn tiền đơn ${order.description}` })
-    if (error) window.alert(error.message); else await onUpdated()
+    if (error) window.alert('Không thể ghi nhận hủy hoặc hoàn tiền. Hãy kiểm tra số tiền hoàn rồi thử lại.'); else await onUpdated()
   }
 
   return <section className="content-stack">
@@ -530,7 +530,7 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     const result = order
       ? await supabase.rpc('update_order', { p_order_id: order.id, p_placed_at: placedAt, p_description: normalizedDescription, p_amount: vnd, p_billing_cycle_id: cycleId, p_notes: order.notes ?? null, p_shopee_order_url: normalizedShopeeOrderUrl })
       : await supabase.from('orders').insert({ description: normalizedDescription, shopee_order_url: normalizedShopeeOrderUrl, amount: vnd, placed_at: placedAt, billing_cycle_id: cycleId })
-    if (result.error) return setError(result.error.message)
+    if (result.error) return setError('Không lưu được đơn hàng. Hãy kiểm tra dữ liệu và thử lại.')
     await onSaved(); onClose()
   }
   return <Dialog title={order ? 'Sửa Đơn Hàng' : 'Thêm Đơn Hàng'} onClose={onClose}><form className="form-stack" onSubmit={save}><label>Mô Tả Đơn Hàng<input required value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>Đơn Hàng Shopee (Không Bắt Buộc)<input type="url" value={shopeeOrderUrl} onChange={(event) => setShopeeOrderUrl(event.target.value)} placeholder="https://shopee.vn/user/purchase/order/248511385254562?type=3" /></label><label>Ngày Đặt<input required type="date" value={placedAt} disabled={lockFinancialFields} onChange={(event) => setPlacedAt(event.target.value)} /></label><label>Số Tiền (VND)<input required inputMode="numeric" value={amount} disabled={lockFinancialFields} onChange={(event) => setAmount(event.target.value)} /></label>{lockFinancialFields && <p className="hint">Đơn đã có phân bổ thanh toán nên ngày đặt và số tiền được khóa để giữ đúng lịch sử.</p>}{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit">Lưu Đơn Hàng</button></form></Dialog>
@@ -544,14 +544,14 @@ function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPl
   const addPlan = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const form = new FormData(event.currentTarget); const name=String(form.get('name')??'').trim(); const amount=parseVndInput(String(form.get('amount')??''))
     if(!supabase || !name || amount===null || amount<=0) return window.alert('Tên khoản và tổng tiền VND chưa hợp lệ.')
-    const {error}=await supabase.from('installment_plans').insert({name,total_amount:amount}); if(error)window.alert(error.message);else{setShowCreate(false);await onUpdated()}
+    const {error}=await supabase.from('installment_plans').insert({name,total_amount:amount}); if(error)window.alert('Không thể tạo khoản trả góp. Hãy kiểm tra dữ liệu và thử lại.');else{setShowCreate(false);await onUpdated()}
   }
   const addPayment = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); if(!supabase||!showPayment)return; const form=new FormData(event.currentTarget); const amount=parseVndInput(String(form.get('amount')??'')); const paid_at=String(form.get('paid_at')??today); const note=String(form.get('note')??'')
     if(amount===null||amount<=0)return window.alert('Số tiền VND phải là số nguyên dương.')
     const plan=plans.find(item=>item.id===showPayment); const remaining=plan ? plan.total_amount-plan.total_paid : 0
     if(amount>remaining)return window.alert(`Số tiền góp vượt quá số còn lại ${formatVnd(remaining)}.`)
-    const {error}=await supabase.rpc('record_installment_payment',{p_plan_id:showPayment,p_amount:amount,p_paid_at:paid_at,p_note:note||null}); if(error)window.alert(error.message); else{setShowPayment(null);await onUpdated()}
+    const {error}=await supabase.rpc('record_installment_payment',{p_plan_id:showPayment,p_amount:amount,p_paid_at:paid_at,p_note:note||null}); if(error)window.alert('Không thể ghi nhận lần góp. Hãy kiểm tra số tiền và số dư còn lại.'); else{setShowPayment(null);await onUpdated()}
   }
   return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Khoản riêng</p><h2>Trả Góp</h2></div>{isAdmin&&<button className="primary-button compact" onClick={()=>setShowCreate(true)}><Plus size={18}/>Tạo Khoản Trả Góp</button>}</div><section className="list-card">{plans.length === 0 ? <p className="empty-state">Chưa có khoản trả góp.</p> : plans.map((plan) => { const remaining = plan.total_amount - plan.total_paid; const progress = Math.min(100, Math.round((plan.total_paid / plan.total_amount) * 100)); return <article className="installment-block" key={plan.id}><div className="installment-row"><div><strong>{plan.name}</strong><span>Đã góp {formatVnd(plan.total_paid)} / {formatVnd(plan.total_amount)}</span><div className="progress"><i style={{ width: `${progress}%` }} /></div></div><strong>{formatVnd(remaining)}<small>còn lại</small></strong></div>{isAdmin&&<button className="secondary-button" onClick={()=>setShowPayment(plan.id)}>Ghi Nhận Lần Góp</button>}<div className="payment-history">{payments.filter(p=>p.plan_id===plan.id).map(p=><div key={p.id}><span>{formatDate(p.paid_at)} · {p.note||'Đã góp'}</span><strong>{formatVnd(p.amount)}</strong></div>)}</div></article>})}</section>
     {showCreate&&<Dialog title="Tạo Khoản Trả Góp" onClose={()=>setShowCreate(false)}><form className="form-stack" onSubmit={addPlan}><label>Tên Khoản<input required name="name"/></label><label>Tổng Tiền (VND)<input required name="amount" inputMode="numeric"/></label><button className="primary-button">Tạo Khoản Trả Góp</button></form></Dialog>}
@@ -575,7 +575,7 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
     const blob=new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`bao-cao-${cycle?.label??'ky'}.xls`;link.click();URL.revokeObjectURL(link.href)
   }
   const pdf=()=>window.print()
-  const toggleClose=async()=>{if(!supabase||!cycle)return;const {error}=await supabase.rpc(cycle.status==='closed'?'reopen_billing_cycle':'close_billing_cycle',{p_cycle_id:cycle.id});if(error)window.alert(error.message);else await onUpdated()}
+  const toggleClose=async()=>{if(!supabase||!cycle)return;const {error}=await supabase.rpc(cycle.status==='closed'?'reopen_billing_cycle':'close_billing_cycle',{p_cycle_id:cycle.id});if(error)window.alert('Không thể khóa hoặc mở khóa kỳ sổ. Hãy kiểm tra trạng thái kỳ rồi thử lại.');else await onUpdated()}
   return <section className="content-stack report-panel"><div className="page-heading"><div><p className="eyebrow">Đối soát</p><h2>Báo cáo kỳ</h2></div><div className="report-actions"><button className="secondary-button" onClick={exportCsv}>Xuất Excel</button><button className="secondary-button" onClick={pdf}>Lưu PDF</button></div></div>{cycles.length===0?<section className="list-card empty-state">Chưa có kỳ sổ nào.</section>:<><label>Kỳ sổ<select value={cycle?.id??''} onChange={e=>onSelect(e.target.value)}>{cycles.map(c=><option key={c.id} value={c.id}>{c.label} · {c.status==='closed'?'Đã khóa':'Đang mở'}</option>)}</select></label><section className="metric-grid"><article className="metric"><span>Dư đầu kỳ</span><strong>{formatVnd(opening)}</strong></article><article className="metric"><span>Đơn phát sinh</span><strong>{formatVnd(purchases)}</strong></article><article className="metric"><span>Đã trả trong kỳ</span><strong>{formatVnd(paid)}</strong></article><article className="metric"><span>Còn lại theo kỳ</span><strong>{formatVnd(ending)}</strong></article></section><section className="list-card report-orders">{cycleOrders.length?cycleOrders.map(o=><div className={`report-line ${o.deleted_at?'is-deleted':''}`} key={o.id}><span>{formatDate(o.placed_at)} · {o.description}{o.deleted_at?' · Đã Xóa':''}</span><strong>{formatVnd(o.amount)}</strong></div>):<p className="empty-state">Kỳ này chưa có đơn hàng.</p>}{isAdmin&&<button className="primary-button compact" onClick={()=>void toggleClose()}>{cycle.status==='closed'?'Mở khóa kỳ':'Khóa sổ kỳ này'}</button>}{cycle.status==='closed'&&<p className="hint">Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.</p>}</section></>}</section>
 }
 

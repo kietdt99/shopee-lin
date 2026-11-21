@@ -4,8 +4,8 @@ This checklist is the release QA plan for v0.1.0. It describes expected behavior
 
 ### Latest verification — 2026-11-22
 
-- `pnpm test:e2e`: 77 passed on `test/orders-management`, covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
-- `pnpm build`: passed on the feature checkout after local bootstrap/import and Orders table layout fixes. Rerun after final copy edits and when the branches are integrated.
+- After the final Vietnamese API/Storage error copy pass: `pnpm test:e2e` passed 77/77 on integrated local `main` (32.7s), covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
+- `pnpm build` passed after the same source changes (1,628 modules); run `git diff --check` before committing.
 - Local Supabase started without `db reset`; the one-time workbook import is present in local Postgres: 60 orders, 2 payments, 24 allocations, 2,999,619 VND outstanding Shopee debt, and 18,000,000 VND S25 Ultra remaining.
 - Local Admin signed into the app. A real local Viewer Auth session read its profile and orders through PostgREST; Viewer installment-plan insert was denied by RLS (HTTP 403), and payment/cancellation/close/reopen RPCs were rejected by Admin guards. No production Auth email was requested.
 - PostgreSQL reports `authenticated` has no table-level `DELETE` privilege on any of the nine public app tables. This does not test every trigger/FK behavior or prove hosted policies.
