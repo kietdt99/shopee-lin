@@ -46,3 +46,4 @@
 - [x] Remove the duplicate Admin badge from the current-period card; retain the Admin-only total paid metric.
 - [x] Show the account role beneath the sidebar display name and keep profile actions aligned without wrapping.
 
+- [x] Match the current-period label to the neutral metric-label style and remove the duplicate “Kỳ” from its value.

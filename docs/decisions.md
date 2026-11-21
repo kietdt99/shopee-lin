@@ -118,3 +118,7 @@ For every change, QA checks whether related tests still match the current UI, pr
 
 Show the signed-in role centered beneath the display name in the sidebar profile, using smaller gray text. Keep profile actions neutral by default with consistent icon/text alignment and prevent labels from wrapping. Do not repeat the Admin role as a badge in the current-period card; role context belongs in the profile card.
 
+
+## 2026-11-22 — Current-period card label
+
+Style “Kỳ Hiện Tại” as a neutral gray metric label and show only the cycle month/year below it; the label already supplies the word “Kỳ”.
