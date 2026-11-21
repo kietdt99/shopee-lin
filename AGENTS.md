@@ -4,7 +4,7 @@ Before changing application code, read `docs/product-spec.md`, `docs/decisions.m
 
 ## Working agreement
 
-- Use `main` as the integration branch. Build one feature on one `feature/...` branch.
+- Use `main` as the integration branch. Build one application feature on one `feature/...` branch. Test-only infrastructure and QA changes use a `test/...` branch.
 - Production deploys only from immutable `release/vX.Y.Z` branches. Do not add features directly to a release branch.
 - Do not commit `.env*` files containing real values, Supabase secrets, user credentials, or personal payment evidence.
 - Money is stored and calculated as whole VND integers. Do not use floating point amounts.

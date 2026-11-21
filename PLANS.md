@@ -20,4 +20,6 @@
 - [ ] Run app against updated Supabase; check mobile and desktop layouts, QR config, empty/cancelled/installment/payment cases.
 - [ ] Configure GitHub Pages and Actions variables, cut immutable `release/v0.1.0`, deploy and verify production, then tag `v0.1.0`.
 - [x] Complete one-time import guide; keep this plan/decision notes current.
+- [x] Add Playwright desktop/mobile Chromium smoke tests, a QA test plan, and PR quality workflow using isolated mocked Supabase requests.
+- [ ] Expand E2E coverage for order/payment mutations, cycle boundary dates, cancellations/refunds, exports, and profile editing; retain real Supabase RLS/Auth checks as manual release gates.
 
