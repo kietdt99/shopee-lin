@@ -3,6 +3,8 @@
 ## 2026-11-22
 
 - Expanded the desktop content frame to 2048px, separated the left navigation into a bordered white panel, moved profile edit/sign-out controls to its footer, and added the `v0.1.0` label below. QA viewport targets: 2560×1440, 1920×1080, 360×780, and 384×832; actual device/browser scaling still needs owner spot-check.
+- Follow-up: left-align the version label and enlarge the sidebar profile card with the uploaded avatar or a bundled default avatar for all accounts. Keep the `Hồ Sơ` and `Đăng Xuất` actions compact and side by side, and constrain the sidebar content to prevent nav items shifting toward the outer edge.
+- The Hồ Sơ email control was already `readOnly`; it now has explicit read-only styling and label text. The required display name now shows the standard `*` marker.
 
 ## 2026-11-21
 

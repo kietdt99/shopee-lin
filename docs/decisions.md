@@ -101,5 +101,7 @@ Cap the centered application shell at 2048px instead of 1480px. This uses large 
 
 ## 2026-11-22 — Sidebar panel and footer
 
-Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Move profile edit and sign-out controls into the bottom of the sidebar, with the `v0.1.0` label below them. At mobile widths, preserve horizontal tabs and show the profile/version row inside the compact navigation panel.
+Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Show a larger profile card at the bottom with an avatar, display name, and two compact side-by-side actions labeled `Hồ Sơ` and `Đăng Xuất`. Use a bundled default avatar for every account without an uploaded image. Place the `v0.1.0` label below and left-aligned. Constrain sidebar children to the panel width so long action text cannot stretch the navigation column. At mobile widths, preserve horizontal tabs and adapt the profile card to a compact row with actions below it.
+
+Keep profile email read-only for all roles and give it a visible read-only treatment. Mark the required display name with `*` in the Hồ Sơ dialog.
 

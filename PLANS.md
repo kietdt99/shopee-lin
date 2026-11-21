@@ -12,6 +12,8 @@
 - [x] Replace hard delete with reversible order soft-delete/restore; retain reopened cycle snapshots; remove database DELETE access for all app business tables. The migration is applied locally; all nine public app tables report no `DELETE` privilege for `authenticated`, and the local Viewer API/RPC check passed.
 - [x] Redesign Orders as a responsive table with explicit cycle labels, manual-submit search, multi-select cycle/status filters, safe multi-item descriptions, and optional Shopee URL viewing. The table was visually checked locally; 77 Playwright tests pass on `test/orders-management` across 1280/390/320 px.
 - [x] Expand the desktop frame to 2048px and style the sidebar as a separate panel; place profile controls and the `v0.1.0` label at its bottom. Verify on 2560/1920 desktop and representative S23 Ultra/S25 Ultra CSS viewports.
+- [x] Align the sidebar version label to the left and show an enlarged profile card with the account avatar or a shared default avatar and labeled actions.
+- [x] Keep profile email view-only for every role with visible styling and mark required display name with `*`.
 - [x] Assign orders to 21st–20th cycles; implement cycle close, reports, and Admin reopen with database guards.
 - [x] Record lump payments and allocate across selected orders, including partial allocations.
 - [x] Add installment plan/payment entry and history.
