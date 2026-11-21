@@ -23,10 +23,21 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'mobile-chromium',
+      name: 'mobile-390-chromium',
       testIgnore: '**/qr-fallback.spec.ts',
       use: {
         ...devices['Pixel 7'],
+        viewport: { width: 390, height: 844 },
+        defaultBrowserType: 'chromium',
+      },
+    },
+    {
+      name: 'mobile-320-chromium',
+      testIgnore: '**/qr-fallback.spec.ts',
+      use: {
+        viewport: { width: 320, height: 800 },
+        isMobile: true,
+        hasTouch: true,
         defaultBrowserType: 'chromium',
       },
     },
@@ -48,6 +59,7 @@ export default defineConfig({
       env: {
         VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
         VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_playwright_test_key',
+        VITE_LOCAL_LOGIN_SHORTCUTS: 'true',
         VITE_LOCAL_ADMIN_EMAIL: 'tuankiet141199@gmail.com',
         VITE_LOCAL_VIEWER_EMAIL: 'tuankiet141199+lin-test@gmail.com',
         VITE_LOCAL_DEV_PASSWORD: 'Shopee-Lin-Local-Only-2026',
