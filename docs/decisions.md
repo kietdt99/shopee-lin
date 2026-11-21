@@ -32,3 +32,7 @@ Purchases and received payments are separate positive records. A signed ledger e
 
 Cycles use the ending month label for a 21st-to-20th range. Closing stores a read-only snapshot; only Admin may reopen. Reports export an Excel-compatible workbook and PDF via the browser print dialog.
 
+## 2026-11-21 — Shopee-inspired UI palette
+
+Use Shopee orange as the app's accent color with white cards and neutral gray backgrounds/text. Keep the app's own compact layout and identity rather than copying Shopee's full interface or logo.
+
