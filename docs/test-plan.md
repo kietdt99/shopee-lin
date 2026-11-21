@@ -7,6 +7,7 @@ This checklist is the release QA plan for v0.1.0. It describes expected behavior
 - After the local login card identity change: `pnpm test:e2e` passed 77/77 (30.9s), including checks that Admin/Viewer role and display name are visible and both emails are absent from their cards.
 - `pnpm build` passed on the feature branch (1,628 modules).
 - After the final Vietnamese API/Storage error copy pass: `pnpm test:e2e` passed 77/77 on integrated local `main` (32.7s), covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
+- 2026-11-22 sidebar/profile follow-up: audited selectors and assertions for the changed UI, added explicit nav inset alignment, left-aligned version, default avatar loading, Admin and Viewer email read-only, required display-name, and compact-action assertions. `pnpm test:e2e` passed 89/89 in 35.1s across desktop, 390px/320px mobile, four target viewports, and QR fallback. This is mocked browser QA; actual phone scaling, private Storage ownership, and production Auth remain separate checks.
 - `pnpm build` passed after the same source changes (1,628 modules); run `git diff --check` before committing.
 - Local Supabase started without `db reset`; the one-time workbook import is present in local Postgres: 60 orders, 2 payments, 24 allocations, 2,999,619 VND outstanding Shopee debt, and 18,000,000 VND S25 Ultra remaining.
 - Local Admin signed into the app. A real local Viewer Auth session read its profile and orders through PostgREST; Viewer installment-plan insert was denied by RLS (HTTP 403), and payment/cancellation/close/reopen RPCs were rejected by Admin guards. No production Auth email was requested.
@@ -22,6 +23,7 @@ Install the browser once with `pnpm exec playwright install chromium`, then run 
 | Order create and edit | Implemented: creates May 20, May 21, and Dec 21 orders, asserts cycle assignment including year rollover, edits an order, and checks the update RPC payload/display. Allocated orders expose locked date/amount fields. | Live date/cycle guards and direct API bypass denial remain local Supabase checks. |
 | Orders table and required fields | Implemented: selection is the first column, cycle follows amount, and create/edit forms mark description/date/amount required while Shopee URL remains optional. | Check table fit/scroll and required markers at 1280 px, 390 px, and 320 px. |
 | Target device layout | Automated viewport coverage: 2K 27-inch desktop (2560×1440), 14-inch laptop (1920×1080), Samsung S23 Ultra representative CSS viewport (360×780), and Samsung S25 Ultra representative CSS viewport (384×832); asserts centered desktop frame and no horizontal overflow. | Spot-check the actual browsers/device scaling on the owner's two Samsung phones and 27-inch display; browser CSS viewport can vary with OS scaling and zoom. |
+| Sidebar and profile form | Assert sidebar tabs fill the padded inner width, the left-aligned version label, same-row compact actions, default avatar image load, Admin/Viewer read-only email, and required display-name marker/validation. | Confirm actual account avatar signed URLs load from private Storage for each user. |
 | Search and filters | Implemented: typing does not search until Enter/Search; search button submits; cycle/status multi-select filters do not apply until Apply and combine. | No DB check needed; visually inspect 320/390 px filter panel reachability. |
 | Long cycle history filter | Implemented: a chevron icon indicates open/closed state; cycle search filters a fixed-height scrollable list while Apply remains explicit. | Verify scrolling and keyboard access when many cycles exist at mobile and desktop widths. |
 | Description lines and Shopee URL | Implemented: flattened three-item sample splits into three lines while an ambiguous description stays intact; valid URL gets safe new-tab attributes and invalid URL is disabled. | Verify no imported URL is inferred; URL validation is client UX, not auth/security. |
@@ -39,6 +41,10 @@ Install the browser once with `pnpm exec playwright install chromium`, then run 
 Automated ledger scenarios use mocked order/payment/cycle data and assert the UI plus key request payloads. The mocked close/reopen test exercises UI state and modeled balance changes; it does not prove the RPC's persisted database effects. Keep database authorization, ledger integrity, live close/reopen behavior, and export reconciliation against real data in the manual/release checks; mocked browser coverage cannot establish those guarantees.
 
 ## Preconditions
+
+### Test maintenance rule
+
+For every code change, QA reviews the related existing tests against the current product spec and implementation, searches for stale selectors/copy/expectations, and confirms the changed requirement has an observable assertion. Add regression coverage for confirmed defects; update this map and explicitly list material gaps that need manual or live-service checks. A green suite alone does not establish complete coverage.
 
 - [x] Run the app locally against the isolated loopback Supabase project; confirm the URL uses the project root, not `/rest/v1/`.
 - [ ] Confirm required database migrations are applied, including ledger/report and profile display-name migrations.

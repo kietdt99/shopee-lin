@@ -105,3 +105,7 @@ Give the left navigation its own white bordered card surface so it reads separat
 
 Keep profile email read-only for all roles and give it a visible read-only treatment. Mark the required display name with `*` in the Hồ Sơ dialog.
 
+## 2026-11-22 — Test maintenance is part of QA
+
+For every change, QA checks whether related tests still match the current UI, product rules, and API behavior, searches for stale selectors and assertions, and adds regression coverage for confirmed defects. A passing suite is not treated as proof that the changed requirements are covered; material gaps remain explicit in the coverage map.
+
