@@ -4,6 +4,10 @@
 
 Open **SQL Editor** in the Supabase dashboard, paste `schema.sql`, and run it once. This creates all application tables, the payment transaction function, and Row Level Security policies.
 
+For an existing project, apply `migrations/20261121213000_restrict_anonymous_function_execute.sql` after the schema and other function migrations. It removes default `PUBLIC`/`anon` execution from app RPCs, keeps only the `authenticated` grants required by the app and RLS, and disables client execution for trigger-only and legacy functions. New projects created from `schema.sql` receive the same ACLs.
+
+Verify the effective grants with the read-only check in `verification/function_execute_acl.sql`; it should return zero rows. Do not apply that migration through production release automation without reviewing the SQL diff.
+
 ## 2. First-time account activation
 
 No dashboard user creation is needed. On first use, each allowlisted user enters their email and chooses **Đặt password lần đầu**. Supabase sends one activation magic link; opening it in the same browser provisions the role through the database trigger and lets the user set a password. Routine sign-ins then use email/password and do not send email. Password recovery sends an email only when needed.
