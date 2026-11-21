@@ -70,6 +70,10 @@ Application records are never hard-deleted. Admin can soft-delete an unpaid orde
 
 An order may store a validated Shopee purchase URL. Admin can open it using the View action in a new tab. Historical workbook rows do not include regular Shopee order URLs, so their View actions remain disabled until a URL is added.
 
+## 2026-11-22 — Orders table scan and required fields
+
+Put the selection checkbox before the order date, and show billing cycle in its own column after amount so long descriptions remain readable. Mark required order fields (description, date, and amount) with an asterisk in both create and edit dialogs; keep Shopee URL explicitly optional.
+
 ## 2026-11-22 — Private user avatars
 
 Profiles may store a private avatar object path. Each signed-in user can read/upload only within their own UUID folder; only JPEG, PNG, and WebP up to 2 MiB are accepted. The UI stores the object path and uses a short-lived signed URL for display. No client delete policy exists; replaced and abandoned uploads remain retained to honor the no-hard-delete rule. Profile name and avatar path update through a self-only RPC.
