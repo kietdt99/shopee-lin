@@ -21,7 +21,9 @@ export type MockCycle = {
 
 type MockPayment = { id: string; paid_at: string; amount: number; note: string | null }
 type MockAllocation = { payment_id: string; order_id: string; amount: number }
-type MockSeed = { orders?: MockOrder[]; cycles?: MockCycle[]; payments?: MockPayment[]; allocations?: MockAllocation[] }
+type MockClosing = { billing_cycle_id: string; opening_balance: number; purchase_total: number; payment_total: number; adjustment_total: number; closing_balance: number; next_opening_before: number | null }
+type MockLedgerEntry = { id: string; billing_cycle_id: string; entry_date: string; kind: string; amount: number; description: string }
+type MockSeed = { orders?: MockOrder[]; cycles?: MockCycle[]; payments?: MockPayment[]; allocations?: MockAllocation[]; closings?: MockClosing[]; ledgerEntries?: MockLedgerEntry[] }
 
 const userIds: Record<TestRole, string> = {
   admin: '00000000-0000-4000-8000-000000000001',
@@ -69,7 +71,8 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
     cycles: [...(seed.cycles ?? [])],
     payments: [...(seed.payments ?? [])],
     allocations: [...(seed.allocations ?? [])],
-    ledgerEntries: [] as { id: string; billing_cycle_id: string; entry_date: string; kind: string; amount: number; description: string }[],
+    closings: [...(seed.closings ?? [])],
+    ledgerEntries: [...(seed.ledgerEntries ?? [])],
     requests: [] as { method: string; path: string; query: string; body: any }[],
   }
   let nextId = 1
@@ -151,6 +154,8 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         data = [...state.allocations]
       } else if (table === 'ledger_entries') {
         data = [...state.ledgerEntries]
+      } else if (table === 'cycle_closings') {
+        data = [...state.closings]
       }
 
       if (method !== 'GET' && !['orders'].includes(table ?? '')) {
@@ -214,6 +219,51 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         id: newId(), billing_cycle_id: order.billing_cycle_id ?? '', entry_date: new Date().toISOString().slice(0, 10),
         kind: 'refund', amount: body.p_refund_amount, description: body.p_note,
       })
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/close_billing_cycle' && method === 'POST') {
+      const cycle = state.cycles.find((item) => item.id === body.p_cycle_id)
+      if (!cycle || cycle.status !== 'open') {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Billing cycle is not open' } })
+        return
+      }
+      const purchases = state.orders.filter((order) => order.billing_cycle_id === cycle.id && order.status !== 'cancelled').reduce((sum, order) => sum + order.amount, 0)
+      const paid = state.payments.filter((payment) => payment.paid_at >= cycle.starts_on && payment.paid_at <= cycle.ends_on).reduce((sum, payment) => sum + payment.amount, 0)
+      const adjustments = state.ledgerEntries.filter((entry) => entry.billing_cycle_id === cycle.id).reduce((sum, entry) => sum + entry.amount, 0)
+      const nextDate = new Date(`${cycle.ends_on}T00:00:00Z`)
+      nextDate.setUTCDate(nextDate.getUTCDate() + 1)
+      const nextCycle = state.cycles.find((item) => item.starts_on === nextDate.toISOString().slice(0, 10))
+      const snapshot: MockClosing = {
+        billing_cycle_id: cycle.id,
+        opening_balance: cycle.opening_balance,
+        purchase_total: purchases,
+        payment_total: paid,
+        adjustment_total: adjustments,
+        closing_balance: cycle.opening_balance + purchases - paid + adjustments,
+        next_opening_before: nextCycle?.opening_balance ?? null,
+      }
+      state.closings = [...state.closings.filter((closing) => closing.billing_cycle_id !== cycle.id), snapshot]
+      cycle.status = 'closed'
+      if (nextCycle) nextCycle.opening_balance = snapshot.closing_balance
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/reopen_billing_cycle' && method === 'POST') {
+      const cycle = state.cycles.find((item) => item.id === body.p_cycle_id)
+      const snapshot = state.closings.find((item) => item.billing_cycle_id === body.p_cycle_id)
+      if (!cycle || cycle.status !== 'closed' || !snapshot) {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Billing cycle is not closed' } })
+        return
+      }
+      cycle.status = 'open'
+      const nextDate = new Date(`${cycle.ends_on}T00:00:00Z`)
+      nextDate.setUTCDate(nextDate.getUTCDate() + 1)
+      const nextCycle = state.cycles.find((item) => item.starts_on === nextDate.toISOString().slice(0, 10))
+      if (nextCycle && snapshot.next_opening_before !== null) nextCycle.opening_balance = snapshot.next_opening_before
+      state.closings = state.closings.filter((item) => item.billing_cycle_id !== cycle.id)
       await route.fulfill({ status: 204 })
       return
     }
