@@ -12,6 +12,8 @@ Supabase Postgres is the source of truth. The supplied Excel workbook is a one-t
 
 Each application feature uses a `feature/...` branch; test-only infrastructure and QA work use a `test/...` branch. Both merge into `main`. A `release/vX.Y.Z` branch is cut from `main` for production deployment. Production deploys only from `release/*`; releases are tagged after deployment.
 
+Protect `main` with pull requests, the passing `build-and-e2e` check, up-to-date branches, and resolved review conversations; block force-pushes and deletion. Do not require an approval because this repository has one maintainer. Protect release branches from direct pushes, force-pushes, and deletion. Limit the GitHub Pages environment to `release/*` branches.
+
 ## 2026-11-21 — Browser testing
 
 Use Playwright for deterministic browser E2E smoke tests on desktop and mobile Chromium. Mock Supabase Auth and REST at the network boundary; do not add app-level auth bypasses or use production credentials in the suite. Playwright verifies rendered behavior and responsive layout, while actual RLS, email-link expiry, and deployed Auth configuration remain separate live QA checks.

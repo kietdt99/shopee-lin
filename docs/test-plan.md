@@ -118,7 +118,9 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 
 - [ ] Complete manual checks above on local Supabase-backed UI at mobile and desktop widths; record failures and retest fixes.
 - [ ] Run the documented production build and ensure it succeeds. Do not release with unresolved TypeScript/build errors.
-- [ ] Verify live Viewer API/RPC write denial and real Auth/recovery flows; reconcile database migration history; smoke-test production QR, reports, login, and role visibility after deployment. Auth redirects/OTP configuration, Edge Function deployment, RLS catalog policies, QR Actions variables, and Pages workflow configuration have been checked, but the Pages URL currently returns 404 because no release deployment has run.
+- [x] Verify GitHub Pages deployment serves the production login shell (HTTP 200) at 390px and 1440px with no horizontal overflow. Confirm the production bundle contains the expected Supabase URL/publishable key and TPBank payee settings.
+- [ ] Verify live Viewer API/RPC write denial and real Admin/Bé Lin Auth and recovery flows; smoke-test the authenticated production QR, reports, balances, and role visibility before creating tag `v0.1.0`. The Viewer session and Bé Lin's one-time activation are still pending.
+- [ ] Reconcile Supabase migration history before the next CLI-managed database migration. Runtime schema and ACL changes are applied and verified, but the project has no migration-history table; do not run `db push` against the current date-only migrations.
 - [ ] Merge feature branches into `main`; cut `release/vX.Y.Z` from the reviewed `main` commit. Do not add features to a release branch.
 - [ ] Deploy only from the immutable release branch, smoke-test the production login, role visibility, debt totals, QR, reports, and a safe recovery flow, then tag the release.
 - [ ] Ensure no `.env*` secrets, Supabase secret keys, credentials, or personal payment evidence are included in the release.
