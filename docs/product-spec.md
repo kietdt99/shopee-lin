@@ -25,6 +25,7 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Admin may soft-delete only an unpaid order with no payment allocations. Deleted orders remain stored and visible as history, are excluded from balances, and can be restored by Admin while their billing cycle is open. Paid or partially paid orders cannot be deleted; they follow the cancellation/refund flow.
 - Hard deletion is not available for application records. Reopened billing cycles retain prior closing snapshots as history.
 - Admin may optionally save the Shopee order URL. The Orders tab opens that link in a new tab; the View control is disabled if no valid Shopee order URL is saved.
+- Orders show the selection checkbox before the date and place the billing-cycle column after amount. Order description, placed date, and positive VND amount are required and marked with `*`; the Shopee URL is optional.
 - S25 Ultra installments remain separate from ordinary Shopee debt.
 - An installment contribution must be a positive whole-VND amount no greater than the plan's remaining balance. Orders with existing payment allocations cannot change amount, placed date, or billing cycle; descriptive text and Shopee URL may still be corrected.
 - Reopening an earlier billing cycle is rejected while any later cycle remains closed, preventing retained reports from becoming stale. Admin reopens closed cycles from newest to oldest before editing earlier history.

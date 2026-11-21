@@ -477,7 +477,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
     {isAdmin && selectedOrders.length > 0 && <section className="selection-bar"><span>Chọn {selectedOrders.length} Đơn · tối đa {formatVnd(selectedAmount)}</span><button className="primary-button compact" disabled={busy} onClick={() => void markPaid()}><CheckCircle2 size={17} />Ghi Nhận Khoản Đã Nhận</button></section>}
     <section className="list-card orders-list">
       {orders.length === 0 ? <p className="empty-state">Chưa Có Đơn Hàng.</p> : filteredOrders.length === 0 ? <p className="empty-state">Không Tìm Thấy Đơn Hàng Phù Hợp.</p> : <div className="orders-table-scroll"><table className="orders-table">
-        <thead><tr><th>Ngày</th><th>Đơn Hàng</th><th>Số Tiền</th><th>Trạng Thái</th><th>Hành Động</th></tr></thead>
+        <thead><tr><th className="selection-heading"><span className="sr-only">Chọn</span></th><th>Ngày</th><th>Đơn Hàng</th><th>Số Tiền</th><th>Kỳ</th><th>Trạng Thái</th><th>Hành Động</th></tr></thead>
         <tbody>{filteredOrders.map((order) => {
           const state = statusFor(order)
           const allocated = allocatedFor(order)
@@ -487,15 +487,16 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
           const closed = cycleIsClosed(order)
           const orderUrl = validShopeeOrderUrl(order.shopee_order_url)
           return <tr className={`order-row ${state === 'deleted' ? 'is-deleted' : ''}`} key={order.id}>
+            <td className="selection-cell">{isAdmin && state !== 'deleted' && state !== 'cancelled' && !closed && (state === 'unpaid' || state === 'partial') && <input aria-label={`Chọn ${order.description}`} type="checkbox" checked={selected.includes(order.id)} onChange={() => toggleOrder(order.id)} />}</td>
             <td data-label="Ngày">{formatDate(order.placed_at)}</td>
-            <td data-label="Đơn Hàng"><div className="order-item-lines">{itemLines.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}</div><small className="order-cycle">{cycle ? `Kỳ ${cycle}${closed ? ' · Đã Khóa' : ''}` : 'Chưa Xác Định Kỳ'}</small></td>
+            <td data-label="Đơn Hàng"><div className="order-item-lines">{itemLines.map((line, index) => <span key={`${index}-${line}`}>{line}</span>)}</div></td>
             <td className="amount-cell" data-label="Số Tiền"><strong>{formatVnd(order.amount)}</strong>{allocated > 0 && state !== 'deleted' && <small>Còn {formatVnd(remainingFor(order))}</small>}</td>
+            <td data-label="Kỳ">{cycle ? `${cycle}${closed ? ' · Đã Khóa' : ''}` : 'Chưa Xác Định'}</td>
             <td data-label="Trạng Thái"><span className={`order-status ${state}`}>{statusLabels[state]}</span></td>
             <td data-label="Hành Động"><div className="order-actions">
               {isAdmin && <a className={`icon-button ${orderUrl ? '' : 'disabled-action'}`} href={orderUrl ?? undefined} target="_blank" rel="noopener noreferrer" aria-label={orderUrl ? 'Xem Đơn Trên Shopee' : 'Chưa Có Mã Đơn Shopee'} title={orderUrl ? 'Xem Đơn Trên Shopee' : 'Chưa Có Mã Đơn Shopee'} aria-disabled={!orderUrl} onClick={(event) => { if (!orderUrl) event.preventDefault() }}><Eye size={18} /></a>}
               {isAdmin && state === 'deleted' && <button className={`icon-button ${closed ? 'disabled-action' : ''}`} type="button" aria-label="Khôi Phục Đơn" title={closed ? 'Mở khóa kỳ để khôi phục' : 'Khôi Phục Đơn'} disabled={closed} onClick={() => void restoreOrder(order)}><RotateCcw size={18} /></button>}
               {isAdmin && state !== 'deleted' && state !== 'cancelled' && !closed && <>
-                {(state === 'unpaid' || state === 'partial') && <input aria-label={`Chọn ${order.description}`} type="checkbox" checked={selected.includes(order.id)} onChange={() => toggleOrder(order.id)} />}
                 <button className="icon-button" type="button" aria-label="Sửa Đơn" title="Sửa Đơn" onClick={() => setEditing(order)}><Pencil size={18} /></button>
                 {canSoftDelete ? <button className="icon-button" type="button" aria-label="Xóa Đơn" title="Xóa Đơn" onClick={() => void softDeleteOrder(order)}><Trash2 size={18} /></button> : <button className="icon-button" type="button" aria-label="Hủy Đơn" title="Hủy Đơn" onClick={() => void cancelOrder(order)}><CircleX size={18} /></button>}
               </>}
@@ -533,7 +534,7 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     if (result.error) return setError('Không lưu được đơn hàng. Hãy kiểm tra dữ liệu và thử lại.')
     await onSaved(); onClose()
   }
-  return <Dialog title={order ? 'Sửa Đơn Hàng' : 'Thêm Đơn Hàng'} onClose={onClose}><form className="form-stack" onSubmit={save}><label>Mô Tả Đơn Hàng<input required value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>Đơn Hàng Shopee (Không Bắt Buộc)<input type="url" value={shopeeOrderUrl} onChange={(event) => setShopeeOrderUrl(event.target.value)} placeholder="https://shopee.vn/user/purchase/order/248511385254562?type=3" /></label><label>Ngày Đặt<input required type="date" value={placedAt} disabled={lockFinancialFields} onChange={(event) => setPlacedAt(event.target.value)} /></label><label>Số Tiền (VND)<input required inputMode="numeric" value={amount} disabled={lockFinancialFields} onChange={(event) => setAmount(event.target.value)} /></label>{lockFinancialFields && <p className="hint">Đơn đã có phân bổ thanh toán nên ngày đặt và số tiền được khóa để giữ đúng lịch sử.</p>}{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit">Lưu Đơn Hàng</button></form></Dialog>
+  return <Dialog title={order ? 'Sửa Đơn Hàng' : 'Thêm Đơn Hàng'} onClose={onClose}><form className="form-stack" onSubmit={save}><label>Mô Tả Đơn Hàng <span className="required-marker" aria-hidden="true">*</span><input required value={description} onChange={(event) => setDescription(event.target.value)} /></label><label>Đơn Hàng Shopee (Không Bắt Buộc)<input type="url" value={shopeeOrderUrl} onChange={(event) => setShopeeOrderUrl(event.target.value)} placeholder="https://shopee.vn/user/purchase/order/248511385254562?type=3" /></label><label>Ngày Đặt <span className="required-marker" aria-hidden="true">*</span><input required type="date" value={placedAt} disabled={lockFinancialFields} onChange={(event) => setPlacedAt(event.target.value)} /></label><label>Số Tiền (VND) <span className="required-marker" aria-hidden="true">*</span><input required inputMode="numeric" value={amount} disabled={lockFinancialFields} onChange={(event) => setAmount(event.target.value)} /></label><p className="required-note"><span aria-hidden="true">*</span> Trường bắt buộc</p>{lockFinancialFields && <p className="hint">Đơn đã có phân bổ thanh toán nên ngày đặt và số tiền được khóa để giữ đúng lịch sử.</p>}{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit">Lưu Đơn Hàng</button></form></Dialog>
 }
 
 function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPlan[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
