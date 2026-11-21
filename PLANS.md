@@ -21,5 +21,5 @@
 - [ ] Configure GitHub Pages and Actions variables, cut immutable `release/v0.1.0`, deploy and verify production, then tag `v0.1.0`.
 - [x] Complete one-time import guide; keep this plan/decision notes current.
 - [x] Add Playwright desktop/mobile Chromium smoke tests, a QA test plan, and PR quality workflow using isolated mocked Supabase requests.
-- [ ] Expand E2E coverage for order/payment mutations, cycle boundary dates, cancellations/refunds, exports, and profile editing; retain real Supabase RLS/Auth checks as manual release gates.
+- [x] Expand Playwright E2E coverage for order create/edit/delete, multi-order payment and excess rejection, 20th/21st plus year rollover, cancellation/refund, selected-cycle Excel export, print layout, and self display-name editing. Retain live Supabase RLS/Auth/ledger checks as manual release gates.
 

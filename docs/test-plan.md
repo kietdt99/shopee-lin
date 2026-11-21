@@ -2,7 +2,22 @@
 
 This checklist is the release QA plan for v0.1.0. It describes expected behavior; an unchecked item is not evidence that the flow has been tested. Use test orders where possible and clean them up before release.
 
-Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. Tests run on desktop and mobile Chromium, mock Supabase requests, and cover login error handling, Admin/Viewer navigation, Admin recovery-link UI, QR guidance, and empty/populated read-only views. They validate UI behavior only; the live RLS/Auth checks below remain required.
+Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. The current Playwright suite runs on desktop and mobile Chromium and mocks Supabase requests. It covers login layout/error handling, Admin account/recovery-link UI, Viewer navigation and hidden Admin controls, QR guidance, empty orders plus populated installment/report views, and the ledger/export flows listed below. These tests validate mocked UI behavior only; live Supabase Auth/RLS checks below remain required.
+
+### Playwright coverage map
+
+| Flow | Current coverage | Manual/release check |
+| --- | --- | --- |
+| Order create and edit | Implemented: creates May 20, May 21, and Dec 21 orders, asserts cycle assignment including year rollover, then edits an order and checks the PATCH payload and displayed amount. | Live database assignment and closed-cycle constraints remain part of release QA. |
+| Unpaid order delete | Implemented: confirms the delete flow and verifies the order is removed. | Verify database delete policy and closed-cycle constraints. |
+| Partial payment across multiple orders and over-allocation rejection | Implemented: checks one payment across two selected orders, allocations and statuses, then confirms an excessive second payment is rejected without another payment record. | Verify live RPC allocation, ledger balance, and invalid-input behavior. |
+| Paid order cancellation/refund | Implemented: cancels a paid order, checks the refund amount sent to the RPC, cancelled UI state, and refund ledger adjustment. | Verify live refund limits and resulting report totals. |
+| 20th/21st billing-cycle boundary and year rollover | Implemented: asserts May 20→May cycle, May 21→June cycle, and Dec 21→January 2027 cycle. | Verify persisted assignment and ending-month labels against live data. |
+| Excel-compatible export | Implemented: downloads the selected cycle's `.xls` report and checks workbook content, order/payment details, and filename. | Reconcile exported values with live ledger/report data. |
+| PDF/print action | Implemented: verifies the print action invokes `window.print()` and print media hides app navigation/actions while retaining the report. | Confirm browser print dialog behavior and output on target devices. |
+| Profile display-name edit | Implemented: updates the current user's name through the constrained RPC and verifies the session header changes. | Verify the RPC cannot change another profile or role in live Supabase. |
+
+Automated ledger scenarios use mocked order/payment/cycle data and assert the UI plus key request payloads. Keep database authorization, ledger integrity, and export reconciliation against real data in the manual/release checks; mocked browser coverage cannot establish those guarantees.
 
 ## Preconditions
 
