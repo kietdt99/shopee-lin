@@ -9,14 +9,14 @@ Install the browser once with `pnpm exec playwright install chromium`, then run 
 | Flow | Current coverage | Manual/release check |
 | --- | --- | --- |
 | Order create and edit | Implemented: creates May 20, May 21, and Dec 21 orders, asserts cycle assignment including year rollover, then edits an order and checks the PATCH payload and displayed amount. | Live database assignment and closed-cycle constraints remain part of release QA. |
-| Unpaid order delete | Implemented: confirms the delete flow and verifies the order is removed. | Verify database delete policy and closed-cycle constraints. |
+| Unpaid order delete/restore | App code uses `soft_delete_order` and `restore_deleted_order`; the current Playwright test is stale and still expects the row to be removed. | Update the test on `test/orders-management`; verify retained row, deleted styling, no edit/delete, restore, and server denial for paid/allocated orders. |
 | Partial payment across multiple orders and over-allocation rejection | Implemented: checks one payment across two selected orders, allocations and statuses, then confirms an excessive second payment is rejected without another payment record. | Verify live RPC allocation, ledger balance, and invalid-input behavior. |
 | Paid order cancellation/refund | Implemented: cancels a paid order, checks the refund amount sent to the RPC, cancelled UI state, and refund ledger adjustment. | Verify live refund limits and resulting report totals. |
 | Admin cycle close/reopen UI | Implemented: closes a mocked populated cycle, checks the close RPC payload, snapshot totals and closed-state UI; reopens it, checks the reopen RPC, and verifies the next cycle's prior opening balance is restored in the UI. Runs on desktop and mobile Chromium. | Verify the live end-date guard, persisted snapshot stability, downstream balance restoration, Viewer/RLS denial, and close/payment/cancellation concurrency. |
 | 20th/21st billing-cycle boundary and year rollover | Implemented: asserts May 20→May cycle, May 21→June cycle, and Dec 21→January 2027 cycle. | Verify persisted assignment and ending-month labels against live data. |
 | Excel-compatible export | Implemented: downloads the selected cycle's `.xls` report and checks workbook content, order/payment details, and filename. | Reconcile exported values with live ledger/report data. |
 | PDF/print action | Implemented: verifies the print action invokes `window.print()` and print media hides app navigation/actions while retaining the report. | Confirm browser print dialog behavior and output on target devices. |
-| Profile display-name edit | Implemented: updates the current user's name through the constrained RPC and verifies the session header changes. | Verify the RPC cannot change another profile or role in live Supabase. |
+| Profile name/avatar edit | Name editing was covered through the constrained RPC. The new Hồ Sơ dialog uses private avatar upload plus `update_my_profile`; browser coverage is pending. | Add avatar upload/error/read-only email/save tests on `test/orders-management`; verify self-only Storage/RPC access in local Supabase. |
 
 Automated ledger scenarios use mocked order/payment/cycle data and assert the UI plus key request payloads. The mocked close/reopen test exercises UI state and modeled balance changes; it does not prove the RPC's persisted database effects. Keep database authorization, ledger integrity, live close/reopen behavior, and export reconciliation against real data in the manual/release checks; mocked browser coverage cannot establish those guarantees.
 
@@ -79,12 +79,18 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 ## Orders and payment allocation
 
 - [ ] Empty order list shows a useful empty state for both roles; Viewer does not see Admin controls.
-- [ ] Admin creates, edits, and deletes a fully unpaid order with positive whole-VND amounts.
+- [ ] Admin creates and edits an unpaid order; soft-deleting it requires confirmation, retains history, and can be reversed with Restore. All amounts must be positive whole-VND integers.
 - [ ] Orders dated on the 20th and 21st are assigned to the expected 21st–20th billing cycles; cycle labels use the ending month.
 - [ ] Admin selects multiple unpaid orders and records one received payment. Check payment total, allocations, order statuses, and resulting outstanding balance.
 - [ ] Partial payment leaves the relevant order unpaid with the correct remaining amount; exact settlement marks it paid.
 - [ ] Zero, negative, decimal, or over-capacity payment input is rejected without writing partial records.
-- [ ] Cancelling a fully unpaid order follows the delete confirmation path. Cancelling a paid or partially allocated order follows the cancellation/refund path; refund cannot exceed received allocations.
+- [ ] Soft-deleting an unpaid order with no allocations requires confirmation, preserves its row, excludes it from balances, displays a disabled Edit plus Restore action, and restoration returns it to unpaid. No app role can hard-delete an order through PostgREST.
+- [ ] A paid or partially allocated order cannot be soft-deleted. It follows the cancellation/refund flow; refund cannot exceed received allocations, and its payment history remains intact.
+- [ ] Reopening a cycle retains its prior close snapshot; re-closing creates a new active version. Admin cannot hard-delete cycles, payments, allocations, installment data, ledger rows, profiles, or close history through the API.
+- [ ] Profile avatar accepts JPEG/PNG/WebP up to 2 MB, displays a private signed preview, and saves only the current user's object path. Unsupported/oversized files fail visibly; replaced avatar objects remain retained.
+- [ ] Orders table displays cycle labels rather than UUIDs; search runs only on Enter/Search; multiple cycle and status filters apply only after clicking “Áp Dụng Bộ Lọc”.
+- [ ] Shopee URLs open only through the Admin Eye action in a new tab; empty/invalid URLs leave the action disabled. The historical import should not infer URLs absent from the workbook.
+- [ ] Multi-product descriptions preserve separate Excel blocks. For already flattened descriptions, split only when every chunk validates; otherwise keep the description intact.
 - [x] Before applying `20261121_z_serialize_order_financial_rpcs.sql`, audit existing refund ledger rows for duplicates; 2026-11-21 check found zero refund rows. The migration does not reconcile historical entries.
 - [x] After applying the migration, run a synthetic RPC smoke test: payment allocation succeeded, first cancellation created one refund, second cancellation was rejected, and all temporary rows were removed. Post-apply function checks confirmed both routines remain `SECURITY DEFINER`, executable by `authenticated`, with the expected guards.
 - [x] Live two-session payment/cancellation race on 2026-11-21: both RPC requests completed in a valid order; final order was cancelled with exactly one full allocation and no refund adjustment. The open cycle remained open; all synthetic rows were removed and verified absent.

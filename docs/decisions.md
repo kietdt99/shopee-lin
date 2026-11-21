@@ -62,6 +62,26 @@ Use Shopee orange as the app's accent color with white cards and neutral gray ba
 
 Use a vertical left navigation sidebar on desktop and a compact horizontal navigation on mobile. Show a clickable ShopeeLin wordmark that returns to Tổng Quan. Use Title Case labels for the main navigation tabs.
 
+## 2026-11-22 — No hard deletion and retained close history
+
+Application records are never hard-deleted. Admin can soft-delete an unpaid order only when it has no payment allocations; the row remains visible as “Đã Xóa”, is excluded from debt totals, and can be restored while its cycle is open. Orders with any allocation, including paid orders, use the cancellation/refund flow. Reopening a billing cycle marks its closing snapshot as reopened and retains it; a later close creates a new snapshot version. App database roles must not have direct DELETE access to business tables.
+
+## 2026-11-22 — Optional Shopee order URL
+
+An order may store a validated Shopee purchase URL. Admin can open it using the View action in a new tab. Historical workbook rows do not include regular Shopee order URLs, so their View actions remain disabled until a URL is added.
+
+## 2026-11-22 — Private user avatars
+
+Profiles may store a private avatar object path. Each signed-in user can read/upload only within their own UUID folder; only JPEG, PNG, and WebP up to 2 MiB are accepted. The UI stores the object path and uses a short-lived signed URL for display. No client delete policy exists; replaced and abandoned uploads remain retained to honor the no-hard-delete rule. Profile name and avatar path update through a self-only RPC.
+
+## 2026-11-22 — Distinct installment actions
+
+Creating a repayment plan records the liability name and total. Recording a contribution adds one dated amount to that existing plan's history. The UI labels these actions separately; users record S25 Ultra contributions on its existing plan and create a plan only for a new installment liability.
+
+## 2026-11-22 — Preserve financial invariants after allocation
+
+Once an order has any payment allocation, its amount, placed date, and billing cycle are immutable; descriptive text and Shopee URL may be updated without changing debt history. Installment contributions cannot exceed the remaining plan balance, even under concurrent requests. An earlier cycle cannot be reopened while a later cycle is closed; reopen from newest to oldest so stored snapshots remain consistent.
+
 ## 2026-11-21 — Serialize order financial writes
 
 `record_order_payment` and `cancel_order` lock billing cycles before order rows in a stable order. Payment allocation locks both the selected orders' cycles and the cycle(s) containing `p_paid_at`, because reports include payments by paid date. This serializes payment allocation with cancellation and cycle close. `cancel_order` also rejects an already-cancelled order before writing a refund adjustment, preventing concurrent or repeated calls from recording duplicate refunds. Apply the migration before relying on these guards in Supabase.
