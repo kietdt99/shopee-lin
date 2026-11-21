@@ -53,27 +53,51 @@ test('sidebar is a distinct panel with profile and version in its footer', async
 
   const sidebar = page.locator('.sidebar')
   const navigation = sidebar.getByRole('navigation', { name: 'Điều hướng' })
-  const profile = sidebar.locator('.profile-chip')
+  const profile = sidebar.locator('.sidebar-profile')
   const version = sidebar.getByText('v0.1.0')
   await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(profile).toBeVisible()
-  await expect(sidebar.getByRole('button', { name: 'Sửa Hồ Sơ' })).toBeVisible()
-  await expect(sidebar.getByRole('button', { name: 'Đăng xuất' })).toBeVisible()
+  const profileAction = sidebar.getByRole('button', { name: 'Hồ Sơ' })
+  const signOutAction = sidebar.getByRole('button', { name: 'Đăng Xuất' })
+  await expect(profileAction).toBeVisible()
+  await expect(signOutAction).toBeVisible()
+  const profileActionBounds = await profileAction.boundingBox()
+  const signOutActionBounds = await signOutAction.boundingBox()
+  expect(profileActionBounds).not.toBeNull()
+  expect(signOutActionBounds).not.toBeNull()
+  expect(Math.abs(profileActionBounds!.y - signOutActionBounds!.y)).toBeLessThanOrEqual(1)
+  await expect(sidebar.getByRole('button', { name: 'Đăng Xuất' })).toBeVisible()
+  const avatar = sidebar.locator('.sidebar-avatar')
+  await expect(avatar).toBeVisible()
+  await expect(avatar).toHaveAttribute('src', /avatar-default\.svg/)
+  await expect.poll(() => avatar.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0)
   await expect(version).toBeVisible()
 
   const navBounds = await navigation.boundingBox()
   const profileBounds = await profile.boundingBox()
   const versionBounds = await version.boundingBox()
+  const sidebarBounds = await sidebar.boundingBox()
   expect(navBounds).not.toBeNull()
   expect(profileBounds).not.toBeNull()
   expect(versionBounds).not.toBeNull()
+  expect(sidebarBounds).not.toBeNull()
+  expect(Math.abs(versionBounds!.x - profileBounds!.x)).toBeLessThanOrEqual(1)
+  const sidebarPadding = await sidebar.evaluate((element) => {
+    const style = getComputedStyle(element)
+    return { left: parseFloat(style.paddingLeft), right: parseFloat(style.paddingRight), borderLeft: parseFloat(style.borderLeftWidth), borderRight: parseFloat(style.borderRightWidth) }
+  })
+  expect(Math.abs(navBounds!.x - (sidebarBounds!.x + sidebarPadding.left + sidebarPadding.borderLeft))).toBeLessThanOrEqual(1)
+  expect(Math.abs(navBounds!.x + navBounds!.width - (sidebarBounds!.x + sidebarBounds!.width - sidebarPadding.right - sidebarPadding.borderRight))).toBeLessThanOrEqual(1)
   expect(profileBounds!.y).toBeGreaterThan(navBounds!.y + navBounds!.height)
   if ((page.viewportSize()?.width ?? 0) <= 900) {
-    expect(versionBounds!.x).toBeGreaterThan(profileBounds!.x + profileBounds!.width)
+    if ((page.viewportSize()?.width ?? 0) <= 440) {
+      expect(versionBounds!.x).toBeLessThanOrEqual(profileBounds!.x + 1)
+      expect(versionBounds!.y).toBeGreaterThan(profileBounds!.y + profileBounds!.height)
+    } else {
+      expect(versionBounds!.x).toBeGreaterThan(profileBounds!.x + profileBounds!.width)
+    }
   } else {
     expect(versionBounds!.y).toBeGreaterThan(profileBounds!.y + profileBounds!.height)
-    const sidebarBounds = await sidebar.boundingBox()
-    expect(sidebarBounds).not.toBeNull()
     expect(versionBounds!.y + versionBounds!.height).toBeLessThan(sidebarBounds!.y + sidebarBounds!.height)
   }
 })
@@ -120,16 +144,35 @@ test('Admin can open account management and viewer does not see it', async ({ pa
 test('User can update own profile name while email remains read-only', async ({ page }) => {
   const mock = await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
-  await page.getByRole('button', { name: 'Sửa Hồ Sơ' }).click()
+  await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
-  await expect(dialog.getByLabel('Email')).toHaveValue('viewer@example.test')
-  await expect(dialog.getByLabel('Email')).not.toBeEditable()
+  const email = dialog.getByLabel('Email (Chỉ Xem)')
+  await expect(email).toHaveValue('viewer@example.test')
+  await expect(email).not.toBeEditable()
+  await expect(email).toHaveAttribute('readonly')
+  await expect(dialog.locator('.required-marker')).toHaveText('*')
+  await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
   await dialog.getByLabel('Tên Hiển Thị').fill('Bé Lin Test UI')
   await dialog.getByRole('button', { name: 'Lưu Thay Đổi' }).click()
 
-  await expect(page.locator('.profile-name')).toHaveText('Bé Lin Test UI')
+  await expect(page.locator('.sidebar-profile-name')).toHaveText('Bé Lin Test UI')
   expect(mock.profiles.find((profile) => profile.id.endsWith('000000000002'))?.full_name).toBe('Bé Lin Test UI')
   expect(mock.requests.find((request) => request.path === '/rest/v1/rpc/update_my_profile')?.body).toEqual({ p_display_name: 'Bé Lin Test UI', p_avatar_path: null })
+})
+
+test('Admin profile email is view-only and display name is required', async ({ page }) => {
+  await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Hồ Sơ' }).click()
+
+  const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
+  const email = dialog.getByLabel('Email (Chỉ Xem)')
+  await expect(email).toHaveValue('admin@example.test')
+  await expect(email).not.toBeEditable()
+  await expect(email).toHaveAttribute('readonly')
+  await expect(email).toHaveCSS('background-color', 'rgb(247, 246, 245)')
+  await expect(dialog.locator('.required-marker')).toHaveText('*')
+  await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
 })
 
 test('Viewer sees read-only navigation and the payment QR dialog', async ({ page, expectNoHorizontalOverflow }) => {
@@ -232,9 +275,9 @@ test('Admin creates an installment plan, rejects an overpayment, and records a c
 test('Viewer profile avatar upload is private and email is read-only', async ({ page }) => {
   const mock = await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
-  await page.getByRole('button', { name: 'Sửa Hồ Sơ' }).click()
+  await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
-  await expect(dialog.getByLabel('Email')).not.toBeEditable()
+  await expect(dialog.getByLabel('Email (Chỉ Xem)')).not.toBeEditable()
   const fileInput = dialog.getByLabel('Chọn ảnh đại diện')
 
   await fileInput.setInputFiles({ name: 'not-image.pdf', mimeType: 'application/pdf', buffer: Buffer.from('file') })
