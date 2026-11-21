@@ -4,6 +4,8 @@
 
 Shopee Lin tracks purchases made by Bé Lin, the debt Bé Lin owes, settlement payments, and a separate S25 Ultra installment plan.
 
+The supplied Excel workbook is historical data for a one-time migration only. After release, the Admin enters and maintains all new records in the application.
+
 ## Users
 
 - Admin: Can create, update, cancel, settle, and close records.

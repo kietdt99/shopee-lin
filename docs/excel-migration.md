@@ -1,6 +1,6 @@
 # Excel migration
 
-The source workbook contains monthly sheets from `05.2026` to `11.2026` and a separate `Góp S25U` installment sheet.
+The source workbook contains monthly sheets from `05.2026` to `11.2026` and a separate `Góp S25U` installment sheet. It is a one-time migration source, not an ongoing input workflow.
 
 1. Import purchase lines as orders with positive VND amounts.
 2. Import positive "Bé Lin trả nợ" entries as payments, then allocate them to prior outstanding orders after reconciliation.

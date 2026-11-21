@@ -6,7 +6,7 @@ The app shows a static TPBank VietQR card. Bé Lin tells the Admin after transfe
 
 ## 2026-11-21 — Data source
 
-Supabase Postgres is the source of truth. The supplied Excel workbook is a one-time historical import source and a possible report export format.
+Supabase Postgres is the source of truth. The supplied Excel workbook is a one-time historical import source only. After release, the Admin enters and maintains all new records in the application; Excel may be used only as an exported report.
 
 ## 2026-11-21 — Branching and release
 
