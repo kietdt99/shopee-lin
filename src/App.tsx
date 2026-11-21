@@ -204,36 +204,48 @@ export default function App() {
 
   return (
     <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Sổ chi tiêu</p>
-          <h1>Bé Lin</h1>
-        </div>
-        <div className="profile-chip">
-          <span className="profile-name">{profile.full_name}</span>
-          <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa display name" title="Sửa display name"><Pencil size={16} /></button>
-          <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
-        </div>
-      </header>
+      <aside className="sidebar">
+        <button className="brand-link" type="button" onClick={() => setTab('overview')} aria-label="ShopeeLin — Tổng Quan">
+          <span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span>
+        </button>
+        <nav className="tabs" aria-label="Điều hướng">
+          <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={<ReceiptText size={18} />} label="Tổng Quan" />
+          <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={<Package size={18} />} label="Đơn Hàng" />
+          <TabButton active={tab === 'installments'} onClick={() => setTab('installments')} icon={<CreditCard size={18} />} label="Trả Góp" />
+          <TabButton active={tab === 'reports'} onClick={() => setTab('reports')} icon={<ReceiptText size={18} />} label="Báo Cáo" />
+          {isAdmin && <TabButton active={tab === 'accounts'} onClick={() => setTab('accounts')} icon={<Users size={18} />} label="Tài Khoản" />}
+        </nav>
+      </aside>
 
-      <nav className="tabs" aria-label="Điều hướng">
-        <TabButton active={tab === 'overview'} onClick={() => setTab('overview')} icon={<ReceiptText size={18} />} label="Tổng quan" />
-        <TabButton active={tab === 'orders'} onClick={() => setTab('orders')} icon={<Package size={18} />} label="Đơn hàng" />
-        <TabButton active={tab === 'installments'} onClick={() => setTab('installments')} icon={<CreditCard size={18} />} label="Trả góp" />
-        <TabButton active={tab === 'reports'} onClick={() => setTab('reports')} icon={<ReceiptText size={18} />} label="Báo cáo" />
-        {isAdmin && <TabButton active={tab === 'accounts'} onClick={() => setTab('accounts')} icon={<Users size={18} />} label="Tài khoản" />}
-      </nav>
+      <div className="main-area">
+        <header className="topbar">
+          <div className="current-page"><h1>{tabLabels[tab]}</h1></div>
+          <div className="profile-chip">
+            <span className="profile-name">{profile.full_name}</span>
+            <button className="icon-button" onClick={() => setShowDisplayName(true)} aria-label="Sửa Hồ Sơ" title="Sửa Hồ Sơ"><Pencil size={16} /></button>
+            <button className="icon-button" onClick={() => void signOut()} aria-label="Đăng xuất"><LogOut size={18} /></button>
+          </div>
+        </header>
 
-      {tab === 'overview' && <Overview outstanding={outstanding} paid={paidThisList} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
-      {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} isAdmin={isAdmin} onUpdated={loadData} />}
-      {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}
-      {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
-      {tab === 'accounts' && isAdmin && <AccountsPanel accounts={accounts} />}
+        {tab === 'overview' && <Overview outstanding={outstanding} paid={paidThisList} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
+        {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} isAdmin={isAdmin} onUpdated={loadData} />}
+        {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}
+        {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
+        {tab === 'accounts' && isAdmin && <AccountsPanel accounts={accounts} />}
+      </div>
 
       {showPayCard && <PaymentCard onClose={() => setShowPayCard(false)} />}
       {showDisplayName && <DisplayNameDialog name={profile.full_name} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
     </main>
   )
+}
+
+const tabLabels: Record<Tab, string> = {
+  overview: 'Tổng Quan',
+  orders: 'Đơn Hàng',
+  installments: 'Trả Góp',
+  reports: 'Báo Cáo',
+  accounts: 'Tài Khoản',
 }
 
 function ConfigurationNotice() {
