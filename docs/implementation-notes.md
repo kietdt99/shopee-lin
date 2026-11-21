@@ -40,7 +40,7 @@
 
 ## 2026-11-22 — Local account shortcuts
 
-- Added `pnpm supabase:local:start` to generate an isolated CLI workdir under ignored `supabase/local/`, copy the canonical `schema.sql` as a valid single baseline migration, start local Supabase, seed the Admin and Viewer-test users through its local Auth Admin API, and write only local URL/publishable key/dev password values to ignored `.env.development.local`. It does not use the hosted project or overwrite `.env.local`.
+- Added `pnpm supabase:local:start` to generate an isolated CLI workdir under ignored `supabase/local/`, copy the canonical `schema.sql` as a valid baseline migration plus the corrective financial RPC migration, start local Supabase, seed the Admin and Viewer-test users through its local Auth Admin API, and write only local URL/publishable key/dev password values to ignored `.env.development.local`. It does not use the hosted project or overwrite `.env.local`.
 - Vite shows one-click Admin and Tester Quèn shortcuts only in development when the configured API host is loopback on port 54321. The local password is absent from the production bundle. Playwright passes both role shortcuts; full build and all 39 E2E tests pass.
 - Docker is unavailable in the current implementation environment, so the actual Supabase containers and local Auth API seeding still need a first run on the developer machine with Docker Desktop.
 
