@@ -15,6 +15,7 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Hồ Sơ lets a user update their display name and avatar. Email is read-only. Avatars are private, user-owned JPEG/PNG/WebP files up to 2 MB; old avatar objects are retained.
 - Admin can generate a single-use recovery link for a provisioned Viewer without sending email; the Viewer chooses a new password from the link. Its five-minute expiry requires the project-wide Email OTP expiry to be configured to 300 seconds.
 - Local test-account shortcuts show only the role and default display name; the email remains an internal sign-in identifier.
+- The authenticated shell uses a visually distinct left navigation panel on desktop. The profile controls sit at the bottom of that panel above the small `v0.1.0` version label; mobile retains compact horizontal navigation.
 
 ## Core rules
 

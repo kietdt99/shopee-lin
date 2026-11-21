@@ -13,7 +13,7 @@ This checklist is the release QA plan for v0.1.0. It describes expected behavior
 - PostgreSQL reports `authenticated` has no table-level `DELETE` privilege on any of the nine public app tables. This does not test every trigger/FK behavior or prove hosted policies.
 - The suite is mocked and cannot establish local financial concurrency, avatar Storage ownership, or production Auth/QR/recovery behavior. Keep the release gates below open until those checks are performed.
 
-Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. The suite runs mocked Supabase flows on desktop Chromium (1280 px) and mobile Chromium at 390 px and 320 px, plus a hosted-login/QR-fallback project. The mocked login shortcuts exercise only the development UI; they do not start local Supabase or prove Auth/RLS. All browser assertions validate UI/request contracts only; authenticated local Supabase checks below remain required.
+Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. The suite runs mocked Supabase flows on desktop Chromium (1280 px), mobile Chromium at 390 px and 320 px, plus a target-device viewport check (2560×1440, 1920×1080, 360×780, 384×832) and a hosted-login/QR-fallback project. The mocked login shortcuts exercise only the development UI; they do not start local Supabase or prove Auth/RLS. All browser assertions validate UI/request contracts only; authenticated local Supabase checks below remain required.
 
 ### Playwright coverage map
 
