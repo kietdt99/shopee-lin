@@ -66,8 +66,8 @@ Only test this for already-provisioned Viewer accounts; the Admin recovery endpo
 
 Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone does not count as authorization.
 
-- [ ] Run `supabase db query --remote=<project-ref> --read-only --file supabase/verification/function_execute_acl.sql`; it must return zero rows. Anonymous callers must not execute app RPCs, while `authenticated` retains only the app RPCs and `is_admin()` needed by policies. Trigger-only functions and the legacy full-payment RPC must not be client-executable.
-- [ ] With the publishable key and no bearer token, call each app RPC directly; PostgREST must deny execution. With a Viewer session, the app RPCs may be callable but must reject Admin-only mutations through their `is_admin()` checks.
+- [x] Run `supabase db query --remote=<project-ref> --read-only --file supabase/verification/function_execute_acl.sql`; after applying the ACL migration, it returned zero rows. Anonymous calls to all six exposed app RPCs returned HTTP 401; trigger-only and legacy full-payment functions are not client-executable.
+- [ ] With a Viewer session, call table writes and Admin-only RPCs through PostgREST; verify RLS and `is_admin()` deny them. Catalog checks and SQL role simulation do not replace this authenticated API test.
 
 - [ ] Viewer can read the approved ledger, orders, payments, installment plans/history, cycles, and reports.
 - [ ] Viewer API writes to orders, payments, allocations, installment plans/payments, ledger entries, cycle status/closings, and profiles are denied.
