@@ -9,4 +9,5 @@
 - Apply `supabase/migrations/20261121_v01_ledger_reports.sql` to upgrade an existing database before using the new order, payment, cycle-close, refund, and ledger UI.
 - The one-time import generator reads the workbook with `openpyxl`; generated data SQL belongs only in ignored `supabase/local/` and is never committed.
 - GitHub Pages builds require repository Actions variables for Supabase URL/publishable key and the VietQR payee details. Supabase Auth must allow both local and `/shopee-lin/` callback URLs.
+- Historical data was imported to Supabase on 2026-11-21 and reconciled to 2,999,619 VND Shopee debt and 18,000,000 VND S25U remaining. The Supabase-GitHub integration is optional and is not required for the GitHub Pages deployment; keep it disabled unless DB migration automation is intentionally configured.
 
