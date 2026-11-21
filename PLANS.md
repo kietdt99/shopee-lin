@@ -14,6 +14,7 @@
 - [x] Expand the desktop frame to 2048px and style the sidebar as a separate panel; place profile controls and the `v0.1.0` label at its bottom. Verify on 2560/1920 desktop and representative S23 Ultra/S25 Ultra CSS viewports.
 - [x] Align the sidebar version label to the left and show an enlarged profile card with the account avatar or a shared default avatar and labeled actions.
 - [x] Keep profile email view-only for every role with visible styling and mark required display name with `*`.
+- [x] Keep required field asterisks inline with their labels in Hồ Sơ and order create/edit forms.
 - [x] Assign orders to 21st–20th cycles; implement cycle close, reports, and Admin reopen with database guards.
 - [x] Record lump payments and allocate across selected orders, including partial allocations.
 - [x] Add installment plan/payment entry and history.
