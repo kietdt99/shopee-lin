@@ -4,6 +4,8 @@ This checklist is the release QA plan for v0.1.0. It describes expected behavior
 
 ### Latest verification — 2026-11-22
 
+- After the local login card identity change: `pnpm test:e2e` passed 77/77 (30.9s), including checks that Admin/Viewer role and display name are visible and both emails are absent from their cards.
+- `pnpm build` passed on the feature branch (1,628 modules).
 - After the final Vietnamese API/Storage error copy pass: `pnpm test:e2e` passed 77/77 on integrated local `main` (32.7s), covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
 - `pnpm build` passed after the same source changes (1,628 modules); run `git diff --check` before committing.
 - Local Supabase started without `db reset`; the one-time workbook import is present in local Postgres: 60 orders, 2 payments, 24 allocations, 2,999,619 VND outstanding Shopee debt, and 18,000,000 VND S25 Ultra remaining.
@@ -28,7 +30,7 @@ Install the browser once with `pnpm exec playwright install chromium`, then run 
 | Excel-compatible export | Implemented: downloads the selected cycle's `.xls` report and checks workbook content, order/payment details, and filename. | Reconcile exported values with live ledger/report data. |
 | PDF/print action | Implemented: verifies the print action invokes `window.print()` and print media hides app navigation/actions while retaining the report. | Confirm browser print dialog behavior and output on target devices. |
 | Profile name/avatar edit | Implemented: self profile name save, read-only email, unsupported MIME and >2 MiB client rejection, upload/signed preview, and self avatar path save via mocked Storage/RPC. | Local Supabase must prove owner-only upload/read, private signed URL access, and self-only profile RPC; mocks prove no RLS. |
-| Local login shortcut UI | Implemented: Admin and Tester Quèn shortcut click submits the expected local-only email/password; hosted-login project covers regular password form error. | Start Docker/Supabase separately to verify seeded Auth users, role trigger, sessions and RLS. Playwright network mocks do not authenticate against local Supabase. |
+| Local login shortcut UI | Implemented: cards show only **Admin / Bé Kịt Thần Kỳ** and **Viewer / Tester Quèn**, never email; shortcut click submits the expected local-only email/password. Hosted-login project covers regular password form error. | Start Docker/Supabase separately to verify seeded Auth users, role trigger, sessions and RLS. Playwright network mocks do not authenticate against local Supabase. |
 | Installment plan and contributions | Implemented: no-plan states for both roles, existing plan with no history, Admin create, cap rejection, contribution history/progress/remaining; Viewer has no mutation action. | Local Supabase must verify `record_installment_payment` authorization, cumulative cap including concurrent requests, and persisted totals. |
 
 Automated ledger scenarios use mocked order/payment/cycle data and assert the UI plus key request payloads. The mocked close/reopen test exercises UI state and modeled balance changes; it does not prove the RPC's persisted database effects. Keep database authorization, ledger integrity, live close/reopen behavior, and export reconciliation against real data in the manual/release checks; mocked browser coverage cannot establish those guarantees.
