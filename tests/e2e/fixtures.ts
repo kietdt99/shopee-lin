@@ -337,6 +337,6 @@ export async function signIn(page: Page, role: TestRole) {
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password', { exact: true }).fill('test-password')
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
-  await expect(page.getByRole('heading', { name: 'Bé Lin' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Tổng quan' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'ShopeeLin — Tổng Quan' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
 }
