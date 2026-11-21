@@ -1,9 +1,21 @@
 import { test, expect, mockSupabase, signIn } from './fixtures'
+import type { Locator } from '@playwright/test'
 import type { MockCycle, MockOrder } from './fixtures'
 
 const mayCycle: MockCycle = { id: 'cycle-may-2026', label: '05.2026', starts_on: '2026-04-21', ends_on: '2026-05-20', opening_balance: 0, status: 'open' }
 const juneCycle: MockCycle = { id: 'cycle-june-2026', label: '06.2026', starts_on: '2026-05-21', ends_on: '2026-06-20', opening_balance: 0, status: 'open' }
 const januaryCycle: MockCycle = { id: 'cycle-january-2027', label: '01.2027', starts_on: '2026-12-21', ends_on: '2027-01-20', opening_balance: 0, status: 'open' }
+
+async function expectRequiredMarkerInline(labelTitle: Locator) {
+  const metrics = await labelTitle.evaluate((title) => {
+    const copy = title.querySelector('.label-copy')!.getBoundingClientRect()
+    const marker = title.querySelector('.required-marker')!.getBoundingClientRect()
+    return { gap: marker.left - copy.right, centerOffset: Math.abs((marker.top + marker.height / 2) - (copy.top + copy.height / 2)) }
+  })
+  expect(metrics.gap).toBeGreaterThanOrEqual(0)
+  expect(metrics.gap).toBeLessThanOrEqual(4)
+  expect(metrics.centerOffset).toBeLessThanOrEqual(2)
+}
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://img.vietqr.io/**', (route) => route.abort())
@@ -152,6 +164,7 @@ test('User can update own profile name while email remains read-only', async ({ 
   await expect(email).toHaveAttribute('readonly')
   await expect(dialog.locator('.required-marker')).toHaveText('*')
   await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
+  await expectRequiredMarkerInline(dialog.locator('.label-title'))
   await dialog.getByLabel('Tên Hiển Thị').fill('Bé Lin Test UI')
   await dialog.getByRole('button', { name: 'Lưu Thay Đổi' }).click()
 
@@ -173,6 +186,7 @@ test('Admin profile email is view-only and display name is required', async ({ p
   await expect(email).toHaveCSS('background-color', 'rgb(247, 246, 245)')
   await expect(dialog.locator('.required-marker')).toHaveText('*')
   await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
+  await expectRequiredMarkerInline(dialog.locator('.label-title'))
 })
 
 test('Viewer sees read-only navigation and the payment QR dialog', async ({ page, expectNoHorizontalOverflow }) => {
@@ -378,6 +392,9 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
   await page.getByRole('button', { name: 'Thêm Đơn' }).click()
   const createDialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
   await expect(createDialog.locator('.required-marker')).toHaveCount(3)
+  const createTitles = createDialog.locator('.label-title')
+  await expect(createTitles).toHaveCount(3)
+  for (let index = 0; index < 3; index += 1) await expectRequiredMarkerInline(createTitles.nth(index))
   for (const label of ['Mô Tả Đơn Hàng', 'Ngày Đặt', 'Số Tiền (VND)']) await expect(createDialog.getByLabel(label)).toHaveAttribute('required', '')
   await expect(createDialog.getByLabel('Đơn Hàng Shopee (Không Bắt Buộc)')).not.toHaveAttribute('required', '')
   await createDialog.getByRole('button', { name: 'Đóng' }).click()
@@ -385,6 +402,9 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
   await mayRow.getByRole('button', { name: 'Sửa Đơn' }).click()
   const editDialog = page.getByRole('dialog', { name: 'Sửa Đơn Hàng' })
   await expect(editDialog.locator('.required-marker')).toHaveCount(3)
+  const editTitles = editDialog.locator('.label-title')
+  await expect(editTitles).toHaveCount(3)
+  for (let index = 0; index < 3; index += 1) await expectRequiredMarkerInline(editTitles.nth(index))
   for (const label of ['Mô Tả Đơn Hàng', 'Ngày Đặt', 'Số Tiền (VND)']) await expect(editDialog.getByLabel(label)).toHaveAttribute('required', '')
   await expect(editDialog.getByLabel('Đơn Hàng Shopee (Không Bắt Buộc)')).not.toHaveAttribute('required', '')
   await editDialog.getByRole('button', { name: 'Đóng' }).click()
