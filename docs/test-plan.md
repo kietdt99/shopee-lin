@@ -67,6 +67,7 @@ Only test this for already-provisioned Viewer accounts; the Admin recovery endpo
 Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone does not count as authorization.
 
 - [x] Run `supabase db query --remote=<project-ref> --read-only --file supabase/verification/function_execute_acl.sql`; after applying the ACL migration, it returned zero rows. Anonymous calls to all six exposed app RPCs returned HTTP 401; trigger-only and legacy full-payment functions are not client-executable.
+- [x] Run a rollback-only production SQL role simulation with the Viewer identity after ACL hardening: Viewer can read orders, cannot insert an installment plan or call the payment RPC, and no fixture remains.
 - [ ] With a Viewer session, call table writes and Admin-only RPCs through PostgREST; verify RLS and `is_admin()` deny them. Catalog checks and SQL role simulation do not replace this authenticated API test.
 
 - [ ] Viewer can read the approved ledger, orders, payments, installment plans/history, cycles, and reports.

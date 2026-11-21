@@ -36,4 +36,5 @@
 - `.gitignore` now excludes the one-time personal workbook and `supabase/.temp/`; the workspace has no tracked or untracked changes on `main`.
 - Production browser smoke after deployment loaded the real login shell at 390px and 1440px; both had no horizontal overflow. The deployed JavaScript bundle contains the configured Supabase URL and publishable key plus TPBank name/account/bank values. Authenticated app flows and visible QR rendering remain pending a real user session.
 - `release/v0.1.0` is protected against direct pushes, force-pushes, and deletion. The `v0.1.0` tag is intentionally pending the authenticated production smoke checks.
+- A rollback-only Viewer role simulation after the ACL migration confirmed `is_admin() = false`, order reads are available, installment-plan inserts are denied, and the payment RPC rejects the Viewer. A read-only check afterward confirmed the QA fixture count is zero. This does not replace a request made through PostgREST with a real Viewer JWT.
 
