@@ -279,7 +279,10 @@ function SidebarProfile({ profile, onEdit, onSignOut }: { profile: Profile; onEd
 
   return <section className="sidebar-profile" aria-label="Hồ Sơ">
     <img className="sidebar-avatar" src={avatarUrl || defaultAvatar} alt={`Ảnh đại diện ${profile.full_name}`} />
-    <strong className="sidebar-profile-name">{profile.full_name}</strong>
+    <div className="sidebar-profile-meta">
+      <strong className="sidebar-profile-name">{profile.full_name}</strong>
+      <span className="sidebar-profile-role">{profile.role === 'admin' ? 'Admin' : 'Viewer'}</span>
+    </div>
     <div className="sidebar-profile-actions">
       <button className="sidebar-action sidebar-action-profile" aria-label="Hồ Sơ" onClick={onEdit}><Pencil size={15} />Hồ Sơ</button>
       <button className="sidebar-action" aria-label="Đăng Xuất" onClick={onSignOut}><LogOut size={15} />Đăng Xuất</button>
@@ -376,7 +379,7 @@ function Overview({ outstanding, paid, plans, isAdmin, onPay }: { outstanding: n
   return <section className="content-stack">
     <section className="balance-card"><p>Dư nợ Shopee hiện tại</p><strong>{formatVnd(outstanding)}</strong><span>Cập nhật từ các đơn chưa thanh toán</span>{!isAdmin && <button className="light-button" onClick={onPay}><Smartphone size={18} />Thanh toán</button>}</section>
     <section className="metric-grid">{isAdmin && <article className="metric"><span>Tổng đã thanh toán</span><strong>{formatVnd(paid)}</strong></article>}<article className="metric"><span>Còn trả góp</span><strong>{formatVnd(installmentRemaining)}</strong></article></section>
-    <section className="section-card"><div className="section-heading"><div><p className="eyebrow">Kỳ hiện tại</p><h2>Kỳ {cycleLabel(today)}</h2></div>{isAdmin && <span className="status-pill">Admin</span>}</div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
+    <section className="section-card"><div className="section-heading"><div><p className="eyebrow">Kỳ hiện tại</p><h2>Kỳ {cycleLabel(today)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
   </section>
 }
 

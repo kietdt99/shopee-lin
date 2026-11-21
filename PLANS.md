@@ -42,3 +42,7 @@
 - [x] Run live cycle-close races against cancellation and a payment dated inside the cycle (2026-11-21): close won the cancellation race and the cancel RPC rejected; payment won its race and close stored the matching 5,555 VND purchases / 4,321 VND payment snapshot. All isolated 2000-dated synthetic rows were removed and verified absent.
 - [x] Apply `20261121213000_restrict_anonymous_function_execute.sql` to production and run `supabase/verification/function_execute_acl.sql`; verifier returned zero rows, and direct anonymous calls to six app RPCs returned HTTP 401. Authenticated Viewer API/RPC denial checks remain open; the legacy full-payment RPC is not client-executable.
 
+
+- [x] Remove the duplicate Admin badge from the current-period card; retain the Admin-only total paid metric.
+- [x] Show the account role beneath the sidebar display name and keep profile actions aligned without wrapping.
+

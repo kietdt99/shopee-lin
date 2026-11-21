@@ -113,3 +113,8 @@ Required field labels use a single inline title wrapper containing both the labe
 
 For every change, QA checks whether related tests still match the current UI, product rules, and API behavior, searches for stale selectors and assertions, and adds regression coverage for confirmed defects. A passing suite is not treated as proof that the changed requirements are covered; material gaps remain explicit in the coverage map.
 
+
+## 2026-11-22 — Role and current-period card hierarchy
+
+Show the signed-in role centered beneath the display name in the sidebar profile, using smaller gray text. Keep profile actions neutral by default with consistent icon/text alignment and prevent labels from wrapping. Do not repeat the Admin role as a badge in the current-period card; role context belongs in the profile card.
+

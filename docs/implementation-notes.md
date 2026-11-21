@@ -79,3 +79,6 @@
 - Local `main` is six commits ahead of `origin/main` after this local completion commit. No changes were pushed to GitHub, no hosted Supabase mutation was performed, and no production deploy or tag was created in this pass.
 - After the final API/Storage error copy updates, `pnpm build` passed (1,628 modules), `pnpm test:e2e` passed 77/77 (32.7s), and the final diff passed whitespace validation before commit.
 
+
+- Sidebar profile shows the user's role centered below their display name. The current-period card omits the duplicate Admin badge; the aggregate payment metric remains Admin-only per the existing product decision.
+
