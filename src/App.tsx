@@ -29,7 +29,9 @@ const cycleRange = (label: string) => {
 
 export default function App() {
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
+  const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).has('set-password'))
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
@@ -102,19 +104,57 @@ export default function App() {
       return
     }
     void loadData()
-    const { data } = client.auth.onAuthStateChange(() => void loadData())
+    const { data } = client.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && localStorage.getItem('shopee-lin-password-setup') === 'true')) {
+        setPasswordSetup(true)
+      }
+      void loadData()
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
-  const sendMagicLink = async (event: React.FormEvent<HTMLFormElement>) => {
+  const signIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!client) return
-    setMessage('Đang gửi link đăng nhập…')
+    setMessage('Đang đăng nhập…')
+    const { error } = await client.auth.signInWithPassword({ email, password })
+    setMessage(error ? 'Email hoặc password chưa đúng.' : '')
+  }
+
+  const startPasswordSetup = async () => {
+    if (!client || !email) return setMessage('Nhập email trước nhé.')
+    localStorage.setItem('shopee-lin-password-setup', 'true')
+    setMessage('Đang gửi link kích hoạt…')
     const { error } = await client.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`, shouldCreateUser: true },
+      options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}?set-password=1`, shouldCreateUser: true },
     })
-    setMessage(error ? error.message : 'Đã gửi link đăng nhập. Hãy kiểm tra email nhé.')
+    if (error) {
+      localStorage.removeItem('shopee-lin-password-setup')
+      setMessage(error.message)
+    } else setMessage('Đã gửi link. Mở email trên browser này để đặt password một lần.')
+  }
+
+  const startPasswordReset = async () => {
+    if (!client || !email) return setMessage('Nhập email trước nhé.')
+    setMessage('Đang gửi link reset password…')
+    const { error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}${import.meta.env.BASE_URL}?reset-password=1`,
+    })
+    setMessage(error ? error.message : 'Nếu email đã được cấp quyền, link reset sẽ được gửi tới hộp thư.')
+  }
+
+  const updatePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!client) return
+    if (password.length < 8) return setMessage('Password cần ít nhất 8 ký tự.')
+    const { error } = await client.auth.updateUser({ password })
+    if (error) return setMessage(error.message)
+    localStorage.removeItem('shopee-lin-password-setup')
+    setPasswordSetup(false)
+    setPassword('')
+    setMessage('Đã đặt password. Từ lần sau đăng nhập bằng email và password.')
+    await loadData()
   }
 
   const signOut = async () => {
@@ -125,7 +165,8 @@ export default function App() {
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />
   if (loading) return <main className="centered"><p>Đang mở sổ nợ của Bé Lin…</p></main>
-  if (!profile) return <Login email={email} message={message} onEmailChange={setEmail} onSubmit={sendMagicLink} />
+  if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
+  if (!profile) return <Login email={email} password={password} message={message} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
   return (
     <main className="app-shell">
@@ -161,8 +202,12 @@ function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
 }
 
-function Login({ email, message, onEmailChange, onSubmit }: { email: string; message: string; onEmailChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
-  return <main className="centered"><section className="auth-card"><p className="eyebrow">Sổ chi tiêu</p><h1>Bé Lin</h1><p>Đăng nhập bằng email đã được cấp quyền.</p><form onSubmit={onSubmit}><label>Email<input required type="email" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><button className="primary-button" type="submit">Gửi link đăng nhập</button></form>{message && <p className="form-message">{message}</p>}</section></main>
+function Login({ email, password, message, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
+  return <main className="centered"><section className="auth-card"><p className="eyebrow">Sổ chi tiêu</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và password.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Password<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt password lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên password?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
+}
+
+function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
+  return <main className="centered"><section className="auth-card"><p className="eyebrow">Thiết lập tài khoản</p><h1>Đặt password</h1><p>{email ? `Tài khoản ${email}` : 'Tạo password để lần sau đăng nhập không cần mở email.'}</p><form onSubmit={onSubmit}><label>Password mới<input required minLength={8} type="password" autoComplete="new-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Lưu password</button></form>{message && <p className="form-message">{message}</p>}</section></main>
 }
 
 function TabButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
