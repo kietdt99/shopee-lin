@@ -110,6 +110,19 @@ test('invalid password displays a login error', async ({ page }) => {
   await expect(page.getByText('Email hoặc password chưa đúng.')).toBeVisible()
 })
 
+test('successful password setup removes the redirect marker from the URL', async ({ page }) => {
+  await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+
+  await page.goto('/?set-password=1#')
+  await expect(page.getByRole('heading', { name: 'Đặt password' })).toBeVisible()
+  await page.getByLabel('Password mới').fill('new-test-password')
+  await page.getByRole('button', { name: 'Lưu password' }).click()
+
+  await expect(page.getByRole('button', { name: 'Tổng quan' })).toBeVisible()
+  await expect(page).toHaveURL('http://127.0.0.1:4173/')
+})
+
 test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin', { cycles: [mayCycle, juneCycle, januaryCycle] })
   await signIn(page, 'admin')

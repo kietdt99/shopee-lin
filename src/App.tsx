@@ -159,6 +159,10 @@ export default function App() {
     localStorage.removeItem('shopee-lin-password-setup')
     setPasswordSetup(false)
     setPassword('')
+    const currentUrl = new URL(window.location.href)
+    currentUrl.searchParams.delete('set-password')
+    const cleanPath = `${currentUrl.pathname}${currentUrl.search}${currentUrl.hash}`
+    window.history.replaceState(window.history.state, '', cleanPath)
     setMessage('Đã đặt password. Từ lần sau đăng nhập bằng email và password.')
     await loadData()
   }

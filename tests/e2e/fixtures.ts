@@ -114,6 +114,11 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       return
     }
 
+    if (url.pathname === '/auth/v1/user' && request.method() === 'PUT') {
+      await route.fulfill({ status: 200, json: user })
+      return
+    }
+
     if (url.pathname.startsWith('/rest/v1/') && !url.pathname.includes('/rpc/')) {
       const table = url.pathname.split('/').at(-1)
       let data: unknown = []
