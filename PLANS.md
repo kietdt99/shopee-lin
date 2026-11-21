@@ -11,7 +11,7 @@
 - [x] Add installment plan/payment entry and history.
 - [x] Add cycle report (opening balance, purchases, payments, closing balance) and Excel-compatible/print-to-PDF export.
 - [x] Generate and review one-time legacy SQL including May 2026, order history, payments, opening credit, and S25U; reconcile Shopee balance 2,999,619 VND and S25U balance 18,000,000 VND.
-- [ ] Apply import to Supabase and verify persisted rows and balances.
+- [x] Apply import to Supabase and verify persisted rows and balances (2026-11-21: 60 orders; 2 payments / 24 allocations; Shopee debt 2,999,619 VND; S25U remaining 18,000,000 VND).
 - [ ] Verify magic-link sign-in for Admin, Viewer test, and Bé Lin; exercise Viewer write denial through RLS; configure local and GitHub Pages redirect URLs.
 - [ ] Run app against updated Supabase; check mobile and desktop layouts, QR config, empty/cancelled/installment/payment cases.
 - [ ] Configure GitHub Pages and Actions variables, cut immutable `release/v0.1.0`, deploy and verify production, then tag `v0.1.0`.
