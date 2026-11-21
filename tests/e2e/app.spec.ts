@@ -12,8 +12,14 @@ test.beforeEach(async ({ page }) => {
 
 test('login screen fits desktop and mobile viewports', async ({ page, expectNoHorizontalOverflow }) => {
   await expect(page.getByRole('heading', { name: 'Chọn Tài Khoản' })).toBeVisible()
-  await expect(page.getByTestId('local-login-admin')).toContainText('tuankiet141199@gmail.com')
-  await expect(page.getByTestId('local-login-tester')).toContainText('tuankiet141199+lin-test@gmail.com')
+  const admin = page.getByTestId('local-login-admin')
+  await expect(admin).toContainText('Admin')
+  await expect(admin).toContainText('Bé Kịt Thần Kỳ')
+  await expect(admin).not.toContainText('tuankiet141199@gmail.com')
+  const viewer = page.getByTestId('local-login-tester')
+  await expect(viewer).toContainText('Viewer')
+  await expect(viewer).toContainText('Tester Quèn')
+  await expect(viewer).not.toContainText('tuankiet141199+lin-test@gmail.com')
   await expectNoHorizontalOverflow()
 })
 
