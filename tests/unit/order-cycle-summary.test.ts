@@ -19,6 +19,7 @@ describe('summarizeOrderPaymentsByCycle', () => {
     order({ id: 'june-unpaid', amount: 1_000, status: 'unpaid', billing_cycle_id: 'june' }),
     order({ id: 'june-paid', amount: 500, status: 'paid', billing_cycle_id: 'june' }),
     order({ id: 'may-unpaid', amount: 2_000, status: 'unpaid', billing_cycle_id: 'may' }),
+    order({ id: 'april-unpaid', amount: 800, status: 'unpaid', billing_cycle_id: 'april' }),
     order({ id: 'deleted', amount: 900, status: 'unpaid', billing_cycle_id: 'june', deleted_at: '2026-06-01' }),
     order({ id: 'cancelled', amount: 700, status: 'cancelled', billing_cycle_id: 'june' }),
   ]
@@ -26,6 +27,7 @@ describe('summarizeOrderPaymentsByCycle', () => {
     { order_id: 'june-unpaid', amount: 250 },
     { order_id: 'june-paid', amount: 500 },
     { order_id: 'may-unpaid', amount: 100 },
+    { order_id: 'april-unpaid', amount: 300 },
     { order_id: 'deleted', amount: 900 },
     { order_id: 'cancelled', amount: 700 },
   ]
@@ -38,9 +40,16 @@ describe('summarizeOrderPaymentsByCycle', () => {
   })
 
   it('treats an empty or missing cycle selection as all cycles', () => {
-    const expected = { paidAmount: 850, unpaidAmount: 2_650 }
+    const expected = { paidAmount: 1_150, unpaidAmount: 3_150 }
     expect(summarizeOrderPaymentsByCycle(orders, allocations, [])).toEqual(expected)
     expect(summarizeOrderPaymentsByCycle(orders, allocations, null)).toEqual(expected)
+  })
+
+  it('combines totals for multiple selected cycles', () => {
+    expect(summarizeOrderPaymentsByCycle(orders, allocations, ['june', 'may'])).toEqual({
+      paidAmount: 850,
+      unpaidAmount: 2_650,
+    })
   })
 
   it('keeps VND integer totals and clamps an over-allocated unpaid order at zero', () => {
