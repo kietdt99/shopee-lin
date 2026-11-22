@@ -103,7 +103,7 @@ textarea { width: 100%; min-height: 96px; border: 1px solid #d6d3d1; border-radi
 .cycle-payment-summary-context { display: grid; min-width: 0; gap: 3px; }
 .cycle-payment-summary-context > span, .cycle-payment-metric > span { color: #716b67; font-size: .84rem; }
 .cycle-payment-summary-context > strong { overflow-wrap: anywhere; font-size: .96rem; }
-.cycle-payment-summary-context > small { color: #8a837f; font-size: .78rem; line-height: 1.4; }
+.cycle-payment-summary-context > small { color: #716b67; font-size: .78rem; line-height: 1.4; }
 .cycle-payment-summary-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .cycle-payment-metric { display: grid; min-width: 0; align-content: center; gap: 6px; padding: 12px; border: 1px solid #eeecea; border-radius: 12px; background: #faf9f8; }
 .cycle-payment-metric strong { min-width: 0; color: #262626; font-size: clamp(.98rem, 1.8vw, 1.12rem); overflow-wrap: anywhere; }
