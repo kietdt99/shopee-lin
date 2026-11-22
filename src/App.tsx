@@ -88,7 +88,7 @@ export default function App() {
   const [message, setMessage] = useState(() => new URLSearchParams(window.location.search).get('error_code') === 'otp_expired'
     ? 'Liên kết khôi phục đã hết hạn. Nhắn bé Kịt tạo liên kết mới nhé.'
     : '')
-  const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).has('set-password'))
+  const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).get('set-password') === '1')
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
@@ -208,13 +208,16 @@ export default function App() {
   }
 
   useEffect(() => {
+    // Older builds persisted this flag after sending an activation email. It must
+    // never be used to classify a normal SIGNED_IN event as password setup.
+    localStorage.removeItem('shopee-lin-password-setup')
     if (!client) {
       setLoading(false)
       return
     }
     void loadData()
     const { data } = client.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && localStorage.getItem('shopee-lin-password-setup') === 'true')) {
+      if (event === 'PASSWORD_RECOVERY') {
         setPasswordSetup(true)
       }
       void loadData()
@@ -225,30 +228,36 @@ export default function App() {
   const signIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!client) return
-    setMessage('Đang đăng nhập…')
+    setLoading(true)
+    setMessage('')
     const { error } = await client.auth.signInWithPassword({ email, password })
-    setMessage(error ? 'Email hoặc mật khẩu chưa đúng.' : '')
+    if (error) {
+      setLoading(false)
+      setMessage('Email hoặc mật khẩu chưa đúng.')
+    }
   }
 
   const signInAsLocal = async (account: { role: string; displayName: string; email: string }) => {
     if (!client || !localSupabaseUrl || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return
     setEmail(account.email)
     setPassword('')
-    setMessage(`Đang đăng nhập với ${account.displayName}…`)
+    setLoading(true)
+    setMessage('')
     const { error } = await client.auth.signInWithPassword({ email: account.email, password: import.meta.env.VITE_LOCAL_DEV_PASSWORD })
-    setMessage(error ? `Đăng nhập ${account.displayName} chưa thành công. Hãy khởi động lại Supabase cục bộ.` : '')
+    if (error) {
+      setLoading(false)
+      setMessage(`Đăng nhập ${account.displayName} chưa thành công. Hãy khởi động lại Supabase cục bộ.`)
+    }
   }
 
   const startPasswordSetup = async () => {
     if (!client || !email) return setMessage('Nhập email trước nhé.')
-    localStorage.setItem('shopee-lin-password-setup', 'true')
     setMessage('Đang gửi link kích hoạt…')
     const { error } = await client.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}?set-password=1`, shouldCreateUser: true },
     })
     if (error) {
-      localStorage.removeItem('shopee-lin-password-setup')
       setMessage(error.message.toLowerCase().includes('rate limit')
         ? 'Đã vượt giới hạn gửi email tạm thời. Hãy thử lại sau.'
         : 'Không gửi được liên kết kích hoạt. Hãy thử lại sau hoặc liên hệ bé Kịt.')
@@ -274,7 +283,6 @@ export default function App() {
     if (password.length < 8) return setMessage('Mật khẩu cần ít nhất 8 ký tự.')
     const { error } = await client.auth.updateUser({ password })
     if (error) return setMessage('Không thể cập nhật mật khẩu. Hãy thử lại hoặc liên hệ bé Kịt.')
-    localStorage.removeItem('shopee-lin-password-setup')
     setPasswordSetup(false)
     setPassword('')
     const currentUrl = new URL(window.location.href)
@@ -292,7 +300,7 @@ export default function App() {
   }
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />
-  if (loading) return <main className="centered"><p>Đang mở sổ nợ của Bé Lin…</p></main>
+  if (loading) return <LoadingScreen />
   if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
   if (!profile) return <Login email={email} password={password} message={message} localAccounts={localLoginAccounts} onLoginAsLocal={(account) => void signInAsLocal(account)} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
@@ -359,6 +367,15 @@ function SidebarProfile({ profile, onEdit, onSignOut }: { profile: Profile; onEd
 
 function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
+}
+
+function LoadingScreen() {
+  return (
+    <main className="loading-screen" role="status" aria-label="Đang tải ShopeeLin">
+      <span className="loading-spinner" aria-hidden="true"><span className="brand-mark">S</span></span>
+      <span className="loading-caption">Đang chuẩn bị ShopeeLin</span>
+    </main>
+  )
 }
 
 type LoginProps = {

@@ -6,6 +6,10 @@ button, input { font: inherit; }
 button { cursor: pointer; -webkit-user-select: none; user-select: none; }
 summary, .filter-option { -webkit-user-select: none; user-select: none; }
 .centered { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.loading-screen { position: fixed; z-index: 20; inset: 0; display: grid; align-content: center; justify-items: center; gap: 18px; background: rgba(245, 245, 245, .96); color: #625c58; }
+.loading-spinner { display: grid; width: 76px; height: 76px; place-items: center; border: 3px solid #ffd7cc; border-top-color: var(--shopee-orange); border-radius: 50%; animation: loading-spin 900ms linear infinite; }
+.loading-spinner .brand-mark { width: 42px; height: 42px; border-radius: 13px 13px 13px 5px; font-size: 1.35rem; }
+.loading-caption { font-size: .92rem; font-weight: 650; }
 .auth-card, .section-card, .list-card, .metric, .selection-bar { background: #fff; border: 1px solid #e7e5e4; border-radius: 20px; box-shadow: 0 10px 24px rgba(0, 0, 0, .05); }
 .auth-card { width: min(100%, 420px); padding: 32px; }
 .auth-card .login-brand { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 1.4rem; font-weight: 850; letter-spacing: -.04em; }
@@ -160,6 +164,7 @@ select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; backgrou
 .report-panel select { width: 100%; min-width: 0; }
 @media print { body { background: #fff; } .sidebar, .topbar, .tabs, .report-actions, .primary-button, .secondary-button, label { display: none !important; } .app-shell { display: block; width: auto; max-width: none; padding: 0; } .report-orders, .metric { box-shadow: none; break-inside: avoid; } }
 @keyframes feedback-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes loading-spin { to { transform: rotate(360deg); } }
 @keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes filter-menu-in { from { opacity: 0; transform: translateY(-4px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
