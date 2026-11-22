@@ -89,3 +89,4 @@
 - Report cycle selector is constrained to the panel width to prevent long date-range labels from causing horizontal page overflow on 320px mobile screens.
 - The Admin Orders status filter always includes `Đã Xóa`, even when no deleted orders currently exist. The Viewer only sees statuses represented in their retained order history.
 - Filter popovers disable accidental text selection; the cycle search input explicitly keeps text selection enabled for normal editing.
+- Clickable buttons, menu summaries, and filter-option labels disable browser text selection across the app. Editable search inputs explicitly opt back into text selection.
