@@ -23,17 +23,35 @@ export default defineConfig({
   projects: [
     {
       name: 'chrome-desktop',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
     {
       name: 'edge-desktop',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: { ...devices['Desktop Chrome'], channel: 'msedge' },
     },
     {
+      name: 'chrome-hosted-auth',
+      testMatch: ['**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        baseURL: `http://127.0.0.1:${qrFallbackPort}`,
+      },
+    },
+    {
+      name: 'edge-hosted-auth',
+      testMatch: ['**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'msedge',
+        baseURL: `http://127.0.0.1:${qrFallbackPort}`,
+      },
+    },
+    {
       name: 'chrome-mobile-390',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: {
         ...devices['Pixel 7'],
         channel: 'chrome',
@@ -42,7 +60,7 @@ export default defineConfig({
     },
     {
       name: 'edge-mobile-390',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: {
         ...devices['Pixel 7'],
         channel: 'msedge',
@@ -51,7 +69,7 @@ export default defineConfig({
     },
     {
       name: 'chrome-mobile-320',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: {
         viewport: { width: 320, height: 800 },
         isMobile: true,
@@ -61,7 +79,7 @@ export default defineConfig({
     },
     {
       name: 'edge-mobile-320',
-      testIgnore: '**/qr-fallback.spec.ts',
+      testIgnore: ['**/qr-fallback.spec.ts', '**/auth-login-failure.spec.ts', '**/auth-routing.spec.ts'],
       use: {
         viewport: { width: 320, height: 800 },
         isMobile: true,

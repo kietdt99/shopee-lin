@@ -1,5 +1,7 @@
 import { test, expect, mockSupabase } from './fixtures'
 
+test.use({ trace: 'off', screenshot: 'off', video: 'off' })
+
 test('ordinary password login ignores a stale password-setup marker', async ({ page }) => {
   await mockSupabase(page, 'admin')
   await page.addInitScript(() => localStorage.setItem('shopee-lin-password-setup', 'true'))
