@@ -312,7 +312,7 @@ export default function App() {
         </nav>
         <div className="sidebar-footer">
           <SidebarProfile profile={profile} onEdit={() => setShowDisplayName(true)} onSignOut={() => void signOut()} />
-          <span className="app-version">v0.1.0</span>
+          <span className="app-version">v0.1.2</span>
         </div>
       </aside>
 

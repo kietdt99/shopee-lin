@@ -113,7 +113,7 @@ test('sidebar is a distinct panel with profile and version in its footer', async
   const profile = sidebar.locator('.sidebar-profile')
   const profileName = sidebar.locator('.sidebar-profile-name')
   const profileRole = sidebar.locator('.sidebar-profile-role')
-  const version = sidebar.getByText('v0.1.0')
+  const version = sidebar.getByText('v0.1.2')
   await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(profile).toBeVisible()
   const profileAction = sidebar.getByRole('button', { name: 'Hồ Sơ' })
