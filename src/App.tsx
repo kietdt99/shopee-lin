@@ -160,8 +160,8 @@ export default function App() {
       return
     }
 
-    const [profileResult, accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult, paymentSettingsResult] = await Promise.all([
-      client.from('profiles').select('id,email,full_name,role,avatar_path').eq('id', user.id).single(),
+    const profilePromise = client.from('profiles').select('id,email,full_name,role,avatar_path').eq('id', user.id).single()
+    const dataPromise = Promise.all([
       client.from('profiles').select('id,email,full_name,role').order('role').order('full_name'),
       client.from('orders').select('id,placed_at,description,notes,shopee_order_url,amount,status,billing_cycle_id,deleted_at').order('placed_at', { ascending: false }),
       client.from('payments').select('id,paid_at,amount,note').order('paid_at', { ascending: false }),
@@ -174,36 +174,40 @@ export default function App() {
       client.from('payment_settings').select('singleton,note,qr_image_path,updated_at,updated_by').eq('singleton', true).maybeSingle(),
     ])
 
+    const profileResult = await profilePromise
     if (profileResult.error) {
       setMessage('Tài khoản này chưa được cấp quyền. Hãy liên hệ bé Kịt.')
       setProfile(null)
-    } else {
-      setProfile(profileResult.data as Profile)
-      const loadedPaymentSettings = (paymentSettingsResult.data as PaymentSettings | null) ?? {
-        singleton: true,
-        note: defaultPaymentNote,
-        qr_image_path: null,
-        updated_at: '',
-        updated_by: null,
-      }
-      setPaymentSettings(loadedPaymentSettings)
-      if (loadedPaymentSettings.qr_image_path) {
-        const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.qr_image_path, 60 * 60 * 24)
-        setPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
-      } else {
-        setPaymentQrUrl(fallbackPaymentQrUrl)
-      }
-      setAccounts((accountResult.data ?? []) as Profile[])
-      setOrders((orderResult.data ?? []) as Order[])
-      setPayments((paymentResult.data ?? []) as Payment[])
-      setPlans((planResult.data ?? []) as InstallmentPlan[])
-      setCycles(cycleResult.data ?? [])
-      setInstallmentPayments(installmentPaymentResult.data ?? [])
-      setAllocations(allocationResult.data ?? [])
-      setLedgerEntries(ledgerResult.data ?? [])
-      setClosings(closingResult.data ?? [])
-      setMessage('')
+      setLoading(false)
+      return
     }
+
+    setProfile(profileResult.data as Profile)
+    const [accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult, paymentSettingsResult] = await dataPromise
+    const loadedPaymentSettings = (paymentSettingsResult.data as PaymentSettings | null) ?? {
+      singleton: true,
+      note: defaultPaymentNote,
+      qr_image_path: null,
+      updated_at: '',
+      updated_by: null,
+    }
+    setPaymentSettings(loadedPaymentSettings)
+    if (loadedPaymentSettings.qr_image_path) {
+      const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.qr_image_path, 60 * 60 * 24)
+      setPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
+    } else {
+      setPaymentQrUrl(fallbackPaymentQrUrl)
+    }
+    setAccounts((accountResult.data ?? []) as Profile[])
+    setOrders((orderResult.data ?? []) as Order[])
+    setPayments((paymentResult.data ?? []) as Payment[])
+    setPlans((planResult.data ?? []) as InstallmentPlan[])
+    setCycles(cycleResult.data ?? [])
+    setInstallmentPayments(installmentPaymentResult.data ?? [])
+    setAllocations(allocationResult.data ?? [])
+    setLedgerEntries(ledgerResult.data ?? [])
+    setClosings(closingResult.data ?? [])
+    setMessage('')
     setLoading(false)
   }
 
@@ -300,12 +304,12 @@ export default function App() {
   }
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />
-  if (loading) return <LoadingScreen />
+  if (loading && !profile) return <LoadingScreen />
   if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
   if (!profile) return <Login email={email} password={password} message={message} localAccounts={localLoginAccounts} onLoginAsLocal={(account) => void signInAsLocal(account)} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand-link" type="button" onClick={() => navigateToTab('overview')}>
           <span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span>
@@ -335,6 +339,7 @@ export default function App() {
 
       {showPayCard && <PaymentCard imageUrl={paymentQrUrl} note={paymentSettings.note} onClose={() => setShowPayCard(false)} />}
       {showDisplayName && <DisplayNameDialog profile={profile} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
+      {loading && <LoadingScreen />}
     </main>
   )
 }
