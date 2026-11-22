@@ -66,6 +66,8 @@ test('sidebar is a distinct panel with profile and version in its footer', async
   const sidebar = page.locator('.sidebar')
   const navigation = sidebar.getByRole('navigation', { name: 'Điều hướng' })
   const profile = sidebar.locator('.sidebar-profile')
+  const profileName = sidebar.locator('.sidebar-profile-name')
+  const profileRole = sidebar.locator('.sidebar-profile-role')
   const version = sidebar.getByText('v0.1.0')
   await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(profile).toBeVisible()
@@ -73,11 +75,35 @@ test('sidebar is a distinct panel with profile and version in its footer', async
   const signOutAction = sidebar.getByRole('button', { name: 'Đăng Xuất' })
   await expect(profileAction).toBeVisible()
   await expect(signOutAction).toBeVisible()
+  await expect(profileAction).toHaveCSS('user-select', 'none')
+  await expect(sidebar.getByRole('button', { name: 'Đơn Hàng' })).toHaveCSS('user-select', 'none')
   const profileActionBounds = await profileAction.boundingBox()
   const signOutActionBounds = await signOutAction.boundingBox()
   expect(profileActionBounds).not.toBeNull()
   expect(signOutActionBounds).not.toBeNull()
-  expect(Math.abs(profileActionBounds!.y - signOutActionBounds!.y)).toBeLessThanOrEqual(1)
+  if ((page.viewportSize()?.width ?? 0) <= 900) {
+    expect(Math.abs(profileActionBounds!.y - signOutActionBounds!.y)).toBeLessThanOrEqual(1)
+  } else {
+    expect(signOutActionBounds!.y).toBeGreaterThan(profileActionBounds!.y)
+  }
+  await expect(profileRole).toHaveText('Admin')
+  const roleStyling = await profileRole.evaluate((role) => ({
+    fontSize: parseFloat(getComputedStyle(role).fontSize),
+    color: getComputedStyle(role).color,
+  }))
+  const nameFontSize = await profileName.evaluate((name) => parseFloat(getComputedStyle(name).fontSize))
+  expect(roleStyling.fontSize).toBeLessThan(nameFontSize)
+  expect(roleStyling.color).toBe('rgb(139, 133, 129)')
+  const profileMetaBounds = await sidebar.locator('.sidebar-profile-meta').boundingBox()
+  const profileNameBounds = await profileName.boundingBox()
+  const profileRoleBounds = await profileRole.boundingBox()
+  expect(profileMetaBounds).not.toBeNull()
+  expect(profileNameBounds).not.toBeNull()
+  expect(profileRoleBounds).not.toBeNull()
+  expect(profileRoleBounds!.y).toBeGreaterThanOrEqual(profileNameBounds!.y + profileNameBounds!.height - 1)
+  expect(Math.abs((profileRoleBounds!.x + profileRoleBounds!.width / 2) - (profileMetaBounds!.x + profileMetaBounds!.width / 2))).toBeLessThanOrEqual(1)
+  const actionLayout = await sidebar.locator('.sidebar-action').evaluateAll((actions) => actions.map((action) => ({ scrollHeight: action.scrollHeight, clientHeight: action.clientHeight })))
+  expect(actionLayout.every((action) => action.scrollHeight <= action.clientHeight)).toBe(true)
   await expect(sidebar.getByRole('button', { name: 'Đăng Xuất' })).toBeVisible()
   const avatar = sidebar.locator('.sidebar-avatar')
   await expect(avatar).toBeVisible()
@@ -156,6 +182,7 @@ test('Admin can open account management and viewer does not see it', async ({ pa
 test('User can update own profile name while email remains read-only', async ({ page }) => {
   const mock = await mockSupabase(page, 'viewer')
   await signIn(page, 'viewer')
+  await expect(page.locator('.sidebar-profile-role')).toHaveText('Viewer')
   await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
   const email = dialog.getByLabel('Email (Chỉ Xem)')
@@ -187,6 +214,19 @@ test('Admin profile email is view-only and display name is required', async ({ p
   await expect(dialog.locator('.required-marker')).toHaveText('*')
   await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
   await expectRequiredMarkerInline(dialog.locator('.label-title'))
+})
+
+test('Profile dialog remains open for inside clicks and closes from the backdrop', async ({ page }) => {
+  await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Hồ Sơ' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
+  const backdrop = page.locator('.dialog-backdrop')
+  await expect(dialog).toBeVisible()
+  await dialog.getByRole('heading', { name: 'Hồ Sơ' }).click()
+  await expect(dialog).toBeVisible()
+  await backdrop.click({ position: { x: 3, y: 3 } })
+  await expect(dialog).toHaveCount(0)
 })
 
 test('Viewer sees read-only navigation and the payment QR dialog', async ({ page, expectNoHorizontalOverflow }) => {
@@ -230,6 +270,32 @@ test('ShopeeLin brand returns to the overview', async ({ page }) => {
 
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
 })
+
+for (const role of ['admin', 'viewer'] as const) {
+  test(`${role} sees the correct overview-only role and payment metrics`, async ({ page }) => {
+    await mockSupabase(page, role)
+    await signIn(page, role)
+
+    const currentCycle = page.locator('.section-card')
+    await expect(currentCycle.locator('.overview-cycle-label')).toHaveText('Kỳ Hiện Tại')
+    await expect(currentCycle.locator('.overview-cycle-label')).toHaveCSS('color', 'rgb(113, 107, 103)')
+    await expect(currentCycle.getByRole('heading', { name: /^\d{2}\.\d{4} \(\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}\)$/ })).toBeVisible()
+    await expect(currentCycle.locator('.status-pill')).toHaveCount(0)
+    await expect(page.getByText('Tổng đã thanh toán')).toHaveCount(role === 'admin' ? 1 : 0)
+    await expect(page.locator('.sidebar-profile-role')).toHaveText(role === 'admin' ? 'Admin' : 'Viewer')
+  })
+}
+
+for (const role of ['admin', 'viewer'] as const) {
+  test(`${role} sees the correct deleted-order filter option when none are deleted`, async ({ page }) => {
+    await mockSupabase(page, role, { orders: [] })
+    await signIn(page, role)
+    await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+    await page.locator('.order-filter summary').click()
+
+    await expect(page.getByLabel('Đã Xóa', { exact: true })).toHaveCount(role === 'admin' ? 1 : 0)
+  })
+}
 
 for (const role of ['admin', 'viewer'] as const) {
   test(`${role} sees the empty installment-plan state`, async ({ page }) => {
@@ -409,15 +475,30 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
   await expect(editDialog.getByLabel('Đơn Hàng Shopee (Không Bắt Buộc)')).not.toHaveAttribute('required', '')
   await editDialog.getByRole('button', { name: 'Đóng' }).click()
 
-  await page.locator('.order-filter summary').click()
+  const orderFilter = page.locator('.order-filter')
+  await orderFilter.locator('summary').click()
   await expect(page.locator('.order-filter summary')).toHaveText('Bộ Lọc')
   await expect(page.locator('.filter-chevron')).toHaveCount(1)
+  await expect(page.locator('.order-filter-menu')).toHaveCSS('user-select', 'none')
+  await page.getByRole('heading', { name: 'Đơn Hàng' }).click()
+  await expect(orderFilter).not.toHaveAttribute('open', '')
+  await orderFilter.locator('summary').click()
+  await page.keyboard.press('Escape')
+  await expect(orderFilter).not.toHaveAttribute('open', '')
+  await expect(orderFilter.locator('summary')).toBeFocused()
+  await orderFilter.locator('summary').click()
   const cycleList = page.locator('.cycle-filter-list')
   expect(await cycleList.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+  const cycleOption = page.locator('.cycle-filter-option').filter({ has: page.locator('.cycle-filter-copy strong').getByText('05.2026') }).first()
+  await expect(cycleOption).toHaveCSS('user-select', 'none')
+  await expect(cycleOption).toHaveAttribute('aria-label', '05.2026 (21/04/2026 – 20/05/2026)')
+  await expect(cycleOption.locator('.cycle-filter-copy > span')).toHaveText('21/04/2026 – 20/05/2026')
+  expect(await cycleList.evaluate((element) => getComputedStyle(element).gridTemplateColumns.trim().split(/\s+/).length)).toBe(1)
   const cycleSearch = page.getByLabel('Tìm Kỳ Sổ')
+  await expect(cycleSearch).toHaveCSS('user-select', 'text')
   await cycleSearch.fill('05.2026')
   await expect(cycleList.locator('.filter-option')).toHaveCount(1)
-  await page.getByLabel('05.2026').check()
+  await page.getByLabel(/05\.2026 \(21\/04\/2026 – 20\/05\/2026\)/).check()
   await expect(page.locator('.order-row')).toHaveCount(2)
   await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
   await expect(page.locator('.order-row')).toHaveCount(1)
@@ -444,7 +525,7 @@ test('Order search applies on Enter or the search button, and filters stage unti
   const rows = page.locator('.order-row')
   await expect(rows).toHaveCount(3)
   await expect(rows.first()).not.toContainText(orders[0].id)
-  await expect(page.locator('.order-row').filter({ hasText: 'Chè dưỡng nhan' }).locator('td').nth(4)).toContainText('05.2026')
+  await expect(page.locator('.order-row').filter({ hasText: 'Chè dưỡng nhan' }).locator('td').nth(4)).toHaveText('05.2026')
 
   const search = page.getByLabel('Tìm Kiếm Đơn Hàng')
   await search.fill('sen')
@@ -462,7 +543,7 @@ test('Order search applies on Enter or the search button, and filters stage unti
   await expect(rows).toHaveCount(3)
 
   await page.getByText('Bộ Lọc', { exact: true }).click()
-  await page.getByLabel('06.2026').check()
+  await page.getByLabel(/06\.2026 \(21\/05\/2026 – 20\/06\/2026\)/).check()
   await page.getByLabel('Chưa Trả').check()
   await expect(rows).toHaveCount(3)
   await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
@@ -642,6 +723,7 @@ test('Admin exports the selected cycle as an Excel-compatible report', async ({ 
   await signIn(page, 'admin')
   await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await page.getByLabel('Kỳ sổ').selectOption(mayCycle.id)
+  await expect(page.getByLabel('Kỳ sổ').locator('option:checked')).toContainText('05.2026 (21/04/2026 – 20/05/2026)')
 
   const downloadPromise = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Xuất Excel' }).click()
