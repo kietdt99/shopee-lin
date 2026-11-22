@@ -671,18 +671,19 @@ function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
     return
   }
 
-  const triggerBounds = filter.getBoundingClientRect()
+  const orderToolsBounds = filter.closest<HTMLElement>('.order-tools')?.getBoundingClientRect()
+  if (!orderToolsBounds) return
   const viewportMargin = 12
   const menuWidth = Math.min(340, window.innerWidth - viewportMargin * 2)
   const menuLeft = Math.max(viewportMargin, (window.innerWidth - menuWidth) / 2)
   const preferredHeight = Math.min(360, window.innerHeight * 0.5, menu.scrollHeight)
-  const belowTop = Math.ceil(triggerBounds.bottom + 8)
+  const belowTop = Math.ceil(orderToolsBounds.bottom + 8)
   const belowHeight = Math.max(0, window.innerHeight - belowTop - viewportMargin)
-  const aboveHeight = Math.max(0, triggerBounds.top - 8 - viewportMargin)
-  const placeAbove = belowHeight < Math.min(preferredHeight, 220) && aboveHeight > belowHeight
+  const aboveHeight = Math.max(0, orderToolsBounds.top - 8 - viewportMargin)
+  const placeAbove = belowHeight < Math.min(preferredHeight, 160) && aboveHeight > belowHeight
   const availableHeight = placeAbove ? aboveHeight : belowHeight
   const menuTop = placeAbove
-    ? Math.max(viewportMargin, Math.floor(triggerBounds.top - Math.min(preferredHeight, availableHeight) - 8))
+    ? Math.max(viewportMargin, Math.floor(orderToolsBounds.top - Math.min(preferredHeight, availableHeight) - 8))
     : belowTop
   const menuMaxHeight = Math.max(120, Math.min(preferredHeight || 360, availableHeight || window.innerHeight - viewportMargin * 2))
 
