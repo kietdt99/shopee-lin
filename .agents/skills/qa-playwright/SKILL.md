@@ -19,9 +19,10 @@ Read `AGENTS.md`, `docs/product-spec.md`, `docs/decisions.md`, `docs/test-plan.m
 - For UI work, check desktop and 320–390 px mobile layouts, empty/populated/error states, keyboard use, dialogs, overflow, and icon action reachability.
 - For every change, audit existing tests for stale selectors, labels, assumptions, and expectations against the current spec and UI/business behavior. A passing suite is not enough if assertions no longer match what users see or fail to cover the changed rule.
 - Add a regression assertion for each confirmed defect in the test branch. Check relevant roles and adjacent states, and update the coverage map when coverage changes; call out material gaps that cannot be automated.
-- Payment tests cover integer VND, partial allocation, over-allocation rejection, and paid-order ineligibility.
+- Order-payment tests cover full outstanding-balance settlement for selected unpaid orders, exact allocations, paid-order ineligibility, and the absence of an app-generated partial-payment state. Installment contribution tests remain separate.
 - Soft-delete tests assert confirmation, retained row/history, exclusion from balances, Restore, and no hard-delete request.
 - Never use production credentials, request extra Supabase emails, mutate production data, or store recovery links in test artifacts.
+- Do not run Playwright suites concurrently against the same ports or output directory. For intentionally parallel runs, set unique `PLAYWRIGHT_PORT_BASE` and `PLAYWRIGHT_OUTPUT_DIR` values for each process.
 - Report every suspected defect to the Tech Lead with severity (P0–P3), steps/evidence, affected layer, user impact, and a recommended next action. Do not silently change product code or weaken a test to hide a defect.
 - Distinguish a proven defect from an unverified risk. State exactly what was tested (mocked UI, local Postgres, authenticated REST, or production) and what remains unproven.
 - When requirements are ambiguous, describe the product decision needed and its impact for the Tech Lead; the Tech Lead consolidates customer questions instead of interrupting the customer for each finding.

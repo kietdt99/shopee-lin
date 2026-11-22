@@ -2,18 +2,24 @@ import AxeBuilder from '@axe-core/playwright'
 import { test, expect, mockSupabase, signIn } from './fixtures'
 import type { Page } from '@playwright/test'
 
-type AccessibilityFinding = { surface: string; id: string; impact: string | undefined; targets: string[] }
+type AccessibilityFinding = { surface: string; id: string; impact: string | undefined; help: string; targets: string[]; failureSummaries: string[] }
 
 async function collectAccessibilityViolations(page: Page, surface: string): Promise<AccessibilityFinding[]> {
+  await expect.poll(
+    () => page.evaluate(() => document.getAnimations({ subtree: true }).filter(({ playState }) => playState === 'running').length),
+    { timeout: 1_000 },
+  ).toBe(0)
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
     .analyze()
 
-  return results.violations.map(({ id, impact, nodes }) => ({
+  return results.violations.map(({ id, impact, help, nodes }) => ({
       surface,
       id,
       impact,
+      help,
       targets: nodes.map(({ target }) => target.join(' ')),
+      failureSummaries: nodes.map(({ failureSummary }) => failureSummary ?? ''),
     }))
 }
 
@@ -46,7 +52,7 @@ test('Login and authenticated application surfaces pass automated accessibility 
   await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   await expect(page.getByRole('dialog', { name: 'Hồ Sơ' })).toBeVisible()
   findings.push(...await collectAccessibilityViolations(page, 'Profile dialog'))
-  expect(findings.map(({ surface, id, impact, targets }) => `${surface}: ${id} (${impact}) at ${targets.join(', ')}`), 'WCAG 2.1 A/AA violations by UI surface').toEqual([])
+  expect(findings.map(({ surface, id, impact, help, targets, failureSummaries }) => `${surface}: ${id} (${impact}) — ${help}; selector ${targets.join(', ')}; ${failureSummaries.join(' | ')}`), 'WCAG 2.1 A/AA violations by UI surface').toEqual([])
 })
 
 test('Viewer payment and order surfaces pass automated accessibility checks', async ({ page }) => {
@@ -63,5 +69,5 @@ test('Viewer payment and order surfaces pass automated accessibility checks', as
   await page.getByRole('button', { name: 'Đơn Hàng' }).click()
   await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
   findings.push(...await collectAccessibilityViolations(page, 'Viewer orders'))
-  expect(findings.map(({ surface, id, impact, targets }) => `${surface}: ${id} (${impact}) at ${targets.join(', ')}`), 'WCAG 2.1 A/AA violations by UI surface').toEqual([])
+  expect(findings.map(({ surface, id, impact, help, targets, failureSummaries }) => `${surface}: ${id} (${impact}) — ${help}; selector ${targets.join(', ')}; ${failureSummaries.join(' | ')}`), 'WCAG 2.1 A/AA violations by UI surface').toEqual([])
 })
