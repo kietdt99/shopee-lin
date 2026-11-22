@@ -1,5 +1,9 @@
 # Implementation plan
 
+## v0.1.4 planned
+
+- [ ] Add a scheduled nightly GitHub Actions run for the full Playwright suite on Chrome and Edge. Keep PR/push checks unchanged, do not deploy from the scheduled workflow, and retain failure traces/artifacts for QA triage. Decide whether to run the mocked browser suite only or include the local API/RLS job after verifying runner support and CI cost.
+
 ## v0.1.0
 
 ## Product polish backlog
