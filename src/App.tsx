@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, EyeOff, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
+import { billingCycleLabel, billingCycleRange } from './lib/billingCycle'
+import { orderFilterStatus, sortOrders, type OrderFilterStatus, type OrderSortDirection, type OrderSortKey } from './lib/orderSort'
+import { parseVndInput } from './lib/vnd'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
 import defaultAvatar from './avatar-default.svg'
@@ -47,29 +50,11 @@ const localLoginAccounts = localSupabaseUrl
   : []
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
-const cycleLabel = (value: string) => {
-  const [year, month, day] = value.split('-').map(Number)
-  const next = new Date(Date.UTC(year, month - 1 + (day >= 21 ? 1 : 0), 1))
-  return `${String(next.getUTCMonth() + 1).padStart(2, '0')}.${next.getUTCFullYear()}`
-}
-const cycleRange = (label: string) => {
-  const [month, year] = label.split('.').map(Number)
-  const start = new Date(Date.UTC(year, month - 2, 21))
-  const end = new Date(Date.UTC(year, month - 1, 20))
-  const iso = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
-  return { starts_on: iso(start), ends_on: iso(end) }
-}
 const cycleDisplay = (cycle: { label: string; starts_on: string; ends_on: string }) => `${cycle.label} (${formatDate(cycle.starts_on)} – ${formatDate(cycle.ends_on)})`
 function cycleFilterSummary(selection: string[] | null, cycles: { id: string; label: string }[]) {
   if (selection === null || selection.length === 0) return 'Tất Cả'
   if (selection.length === 1) return cycles.find((cycle) => cycle.id === selection[0])?.label ?? '1 mục'
   return `${selection.length} mục`
-}
-const parseVndInput = (value: string) => {
-  const trimmed = value.trim()
-  if (!/^(?:\d+|\d{1,3}(?:[.,]\d{3})+)$/.test(trimmed)) return null
-  const parsed = Number(trimmed.replace(/[.,]/g, ''))
-  return Number.isSafeInteger(parsed) ? parsed : null
 }
 const validShopeeOrderUrl = (value: string | null | undefined) => {
   if (!value) return null
@@ -640,62 +625,13 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function Overview({ outstanding, plans, isAdmin, onPay }: { outstanding: number; plans: InstallmentPlan[]; isAdmin: boolean; onPay: () => void }) {
   const installmentRemaining = plans.reduce((total, plan) => total + plan.total_amount - plan.total_paid, 0)
-  const currentCycle = { label: cycleLabel(today), ...cycleRange(cycleLabel(today)) }
+  const currentCycleLabel = billingCycleLabel(today)
+  const currentCycle = { label: currentCycleLabel, ...billingCycleRange(currentCycleLabel) }
   return <section className="content-stack">
     <section className="balance-card"><p>Dư nợ Shopee hiện tại</p><strong>{formatVnd(outstanding)}</strong><span>Cập nhật từ các đơn chưa thanh toán</span>{!isAdmin && <button className="light-button" onClick={onPay}><QrCode size={18} />Thanh toán</button>}</section>
     <section className="metric-grid metric-grid-single"><article className="metric"><span>Còn trả góp</span><strong>{formatVnd(installmentRemaining)}</strong></article></section>
     <section className="section-card"><div className="section-heading"><div><p className="overview-cycle-label">Kỳ Hiện Tại</p><h2>{cycleDisplay(currentCycle)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
   </section>
-}
-
-type OrderFilterStatus = 'unpaid' | 'paid' | 'cancelled' | 'deleted'
-type OrderSortKey = 'date' | 'amount' | 'cycle' | 'status'
-type OrderSortDirection = 'asc' | 'desc'
-
-const orderStatusSortOrder: Record<OrderFilterStatus, number> = { unpaid: 0, paid: 1, cancelled: 2, deleted: 3 }
-
-function orderStatus(order: Order): OrderFilterStatus {
-  if (order.deleted_at) return 'deleted'
-  if (order.status === 'cancelled') return 'cancelled'
-  if (order.status === 'paid') return 'paid'
-  return 'unpaid'
-}
-
-function compareOrderValues(left: Order, right: Order, key: OrderSortKey, cycleStartById: Map<string, string>) {
-  switch (key) {
-    case 'date':
-      return left.placed_at.localeCompare(right.placed_at)
-    case 'amount':
-      return left.amount - right.amount
-    case 'cycle': {
-      const leftCycleStart = left.billing_cycle_id ? cycleStartById.get(left.billing_cycle_id) : undefined
-      const rightCycleStart = right.billing_cycle_id ? cycleStartById.get(right.billing_cycle_id) : undefined
-      if (leftCycleStart === undefined || rightCycleStart === undefined) {
-        if (leftCycleStart !== rightCycleStart) return leftCycleStart === undefined ? 1 : -1
-        return 0
-      }
-      return leftCycleStart.localeCompare(rightCycleStart)
-    }
-    case 'status':
-      return orderStatusSortOrder[orderStatus(left)] - orderStatusSortOrder[orderStatus(right)]
-  }
-}
-
-function sortOrders(orders: Order[], key: OrderSortKey | null, direction: OrderSortDirection, cycleStartById: Map<string, string>) {
-  if (key === null) return orders
-
-  const directionMultiplier = direction === 'asc' ? 1 : -1
-  return orders.map((order, index) => ({ order, index })).sort((left, right) => {
-    if (key === 'cycle') {
-      const leftHasCycleDate = left.order.billing_cycle_id !== null && cycleStartById.has(left.order.billing_cycle_id)
-      const rightHasCycleDate = right.order.billing_cycle_id !== null && cycleStartById.has(right.order.billing_cycle_id)
-      if (leftHasCycleDate !== rightHasCycleDate) return leftHasCycleDate ? -1 : 1
-    }
-
-    const comparison = compareOrderValues(left.order, right.order, key, cycleStartById)
-    if (comparison === 0) return left.index - right.index
-    return comparison * directionMultiplier
-  }).map(({ order }) => order)
 }
 
 function OrderSortIcon({ active, direction }: { active: boolean; direction: OrderSortDirection }) {
@@ -832,7 +768,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   }, [])
   const remainingFor = (order: Order) => order.amount - allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
   const allocatedFor = (order: Order) => allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
-  const statusFor = orderStatus
+  const statusFor = orderFilterStatus
   const cycleIsClosed = (order: Order) => cycles.some((cycle) => cycle.id === order.billing_cycle_id && cycle.status === 'closed')
   const unpaid = orders.filter((order) => statusFor(order) === 'unpaid' && !cycleIsClosed(order))
   const selectedOrders = unpaid.filter((order) => selected.includes(order.id))
@@ -1049,10 +985,11 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     const enteredShopeeOrderUrl = shopeeOrderUrl.trim()
     const normalizedShopeeOrderUrl = validShopeeOrderUrl(enteredShopeeOrderUrl)
     if (enteredShopeeOrderUrl && !normalizedShopeeOrderUrl) return setError('Nhập link đơn hàng Shopee hợp lệ, ví dụ https://shopee.vn/user/purchase/order/248511385254562?type=3.')
-    const cycle = await supabase.from('billing_cycles').select('id,status').eq('label', cycleLabel(placedAt)).maybeSingle()
+    const cycleLabel = billingCycleLabel(placedAt)
+    const cycle = await supabase.from('billing_cycles').select('id,status').eq('label', cycleLabel).maybeSingle()
     if (cycle.data?.status === 'closed') return setError('Kỳ này đã khóa sổ, không thể thêm hoặc sửa đơn.')
-    const range = cycleRange(cycleLabel(placedAt))
-    const cycleId = cycle.data?.id ?? (await supabase.from('billing_cycles').insert({ label: cycleLabel(placedAt), ...range }).select('id').single()).data?.id
+    const range = billingCycleRange(cycleLabel)
+    const cycleId = cycle.data?.id ?? (await supabase.from('billing_cycles').insert({ label: cycleLabel, ...range }).select('id').single()).data?.id
     const result = order
       ? await supabase.rpc('update_order', { p_order_id: order.id, p_placed_at: placedAt, p_description: normalizedDescription, p_amount: vnd, p_billing_cycle_id: cycleId, p_notes: order.notes ?? null, p_shopee_order_url: normalizedShopeeOrderUrl })
       : await supabase.from('orders').insert({ description: normalizedDescription, shopee_order_url: normalizedShopeeOrderUrl, amount: vnd, placed_at: placedAt, billing_cycle_id: cycleId })
