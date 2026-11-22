@@ -22,8 +22,10 @@ Read `AGENTS.md`, `docs/product-spec.md`, `docs/decisions.md`, `docs/implementat
 - Keep user-facing copy in Vietnamese unless a familiar technical term is clearer. Use explicit labels, empty states, disabled-state explanations, and accessible names for icon-only controls.
 - Avoid exposing database IDs in the UI; format billing cycle labels for humans.
 - Review all states for the changed flow: initial, loading, empty, success, validation error, API error, disabled, and retained/deleted history.
+- Prevent avoidable layout shifts during development: controls whose labels or counts change must keep stable dimensions, and adjacent controls must not jump as state changes. Inspect the initial, selected, empty, and expanded states at the target desktop/mobile widths before handoff; do not defer basic overflow, overlap, or alignment defects to QA.
 - For financial actions, validate UX inputs but assume clients are bypassable; request a server-side invariant for every money/status rule.
 - Keep form values stable after server errors, prevent duplicate submits, and explain why an action is unavailable.
+- Optimize source readability for future coding agents: use explicit names, small focused helpers, and straightforward control flow so requirements, state transitions, and data mutations are easy to trace. Avoid compressed JSX, clever indirection, or abstractions that hide behavior; place brief comments next to non-obvious business invariants.
 - Do not add a dependency, route, preference, or user-facing feature outside the assigned scope without Tech Lead agreement.
 
 ## Required review surface

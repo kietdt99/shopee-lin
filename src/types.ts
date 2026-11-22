@@ -28,6 +28,14 @@ export type Payment = {
   note: string | null
 }
 
+export type PaymentSettings = {
+  singleton: boolean
+  note: string
+  qr_image_path: string | null
+  updated_at: string
+  updated_by: string | null
+}
+
 export type InstallmentPlan = {
   id: string
   name: string

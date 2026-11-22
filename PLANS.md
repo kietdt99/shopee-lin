@@ -2,6 +2,14 @@
 
 ## v0.1.0
 
+## Product polish backlog
+
+- [ ] Add an Admin-only **Thanh Toán** tab to upload the full QR image and edit its note; render the image as-is for Viewer without repeating bank/account details. Persist settings in Supabase and retain replaced QR images.
+- [ ] Add restrained interaction animations: short transitions for navigation changes, dialogs, filter menus, and action feedback; respect `prefers-reduced-motion`, avoid animating layout dimensions, and keep motion from delaying input.
+- [ ] Run a visual consistency pass for spacing, typography, color hierarchy, and component states across Overview, Orders, Installments, Reports, Accounts, and dialogs. Keep Shopee orange as the accent and use consistent neutral surfaces, borders, and status colors.
+- [ ] Validate the visual pass at the four agreed targets: 2560×1440 desktop (2K 27-inch), 1366×768 laptop (14-inch reference viewport), 384×854 Samsung S23 Ultra CSS viewport, and 384×854 Samsung S25 Ultra CSS viewport. Record actual device/browser measurements when available; CSS viewports are not substitutes for physical-device review.
+- [ ] Add Playwright coverage for animation reduced-motion behavior, dialog/filter transitions, and visual regression checks for key desktop/mobile screens before enabling motion broadly.
+
 - [x] Establish repository guidance and branch strategy.
 - [x] Create Supabase schema, roles, and Row Level Security policies.
 - [x] Build role-aware application shell; switch routine login to email/password with one-time email activation and password recovery.
@@ -28,7 +36,7 @@
 - [x] Configure GitHub Pages deployment through Actions and confirm all five required Actions variables exist. Cut and protect immutable `release/v0.1.0`; deployment succeeded and the production login shell returned HTTP 200 at mobile and desktop widths with no horizontal overflow. [ ] Complete real Auth/RLS, report, QR, and recovery smoke checks, then create tag `v0.1.0`.
 - [ ] Establish reliable Supabase migration history before the next CLI-managed schema change: production schema/data and ACLs are applied and verified, but the project has no `supabase_migrations.schema_migrations` history table, and the original five date-only migration filenames all parse as version `20261121`. Do not run `db push` against these files.
 - [x] Complete one-time import guide; keep this plan/decision notes current.
-- [x] Add Playwright UI regression coverage, QA test plan, and PR quality workflow using isolated mocked Supabase requests. Coverage is being expanded to Chrome and Edge only, automated WCAG scans, local authenticated API/RLS checks, and a production bundle-size budget; the cross-browser run and initial accessibility findings remain open until fixed and retested.
+- [x] Add Playwright UI regression coverage, QA test plan, and PR quality workflow using isolated mocked Supabase requests. Coverage includes Chrome and Edge only, automated WCAG scans, local authenticated API/RLS checks, and a production bundle-size budget; full cross-browser run and any remaining accessibility findings stay release gates until retested.
 - [x] Add an isolated local Supabase bootstrap and one-click Admin/Tester login shortcuts. Docker Desktop is installed, the local stack starts without resetting the DB, and both local Auth accounts are seeded.
 - [x] Expand Playwright E2E coverage for order create/edit/soft-delete/restore, multi-order payment and excess rejection, 20th/21st plus year rollover, cancellation/refund, cycle close/reopen UI with modeled snapshot and downstream-opening restoration, selected-cycle Excel export, print layout, profile/avatar editing, and target device layouts. Latest `pnpm test:e2e` passes 89/89; retain live Supabase RLS/Auth/ledger checks as separate gates.
 - [x] Serialize payment allocation and cancellation RPCs with cycle-before-order locks, including the payment-date cycle; reject repeated cancellation before adding another refund entry.
@@ -43,7 +51,7 @@
 - [x] Apply `20261121213000_restrict_anonymous_function_execute.sql` to production and run `supabase/verification/function_execute_acl.sql`; verifier returned zero rows, and direct anonymous calls to six app RPCs returned HTTP 401. Authenticated Viewer API/RPC denial checks remain open; the legacy full-payment RPC is not client-executable.
 
 
-- [x] Remove the duplicate Admin badge from the current-period card; retain the Admin-only total paid metric.
+- [x] Remove the duplicate Admin badge from the current-period card and remove the redundant “Tổng đã thanh toán” Overview metric for all roles; cycle reports remain the source for period payment totals.
 - [x] Show the account role beneath the sidebar display name and keep profile actions aligned without wrapping.
 
 - [x] Match the current-period label to the neutral metric-label style and remove the duplicate “Kỳ” from its value.
@@ -51,7 +59,10 @@
 - [x] Simplify the cycle filter list into grouped single-column options for narrow and desktop layouts.
 - [x] Constrain the report cycle selector width to prevent mobile horizontal overflow with date-range labels.
 - [x] Keep `Đã Xóa` available as an Admin Orders filter status even when no deleted rows currently exist.
-- [ ] Confirm whether `Trả Một Phần` is intended as a supported payment allocation state or should be removed in favor of whole-order settlement only.
+- [x] Remove “Trả Một Phần” as an order status. New Admin payments must settle every selected order's full outstanding amount; show a custom confirmation with selected count and total; preserve imported historical allocations and keep any remaining balance under “Chưa Thanh Toán”.
 - [x] Prevent accidental text highlighting when clicking the order filter while preserving text selection in its search field.
 - [x] Audit and prevent accidental text selection across clickable controls and filter options throughout the app; preserve input text selection.
 - [x] Close the Orders filter on outside click and Escape; restore focus to its trigger on Escape.
+- [x] Keep Orders cycle/status filter controls persistently visible. Entering Orders selects the newest cycle for both roles; statuses start unchecked and mean all. Empty selections mean all matching results and stay unchecked when reopened. Add select-all checkboxes, retain explicit Apply, and prevent the menus from opening together. The mobile CSS stacks the controls; physical-device fit still needs a release spot-check.
+- [x] Enforce Shopee completion semantics: Chưa Thanh Toán means awaiting delivery/transport; Đã Thanh Toán means complete and cannot be edited, cancelled, or refunded. Guard both UI and `cancel_order` RPC.
+- [x] Replace native browser alert/confirm/prompt product flows with custom ShopeeLin dialogs or inline errors; native print remains for PDF export.

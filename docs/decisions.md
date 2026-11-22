@@ -2,7 +2,7 @@
 
 ## 2026-11-21 — Minimal payment flow
 
-The app shows a static TPBank VietQR card. Bé Lin tells the Admin after transferring. The Admin confirms and allocates payment to orders manually. Bank APIs, transfer notifications, and receipt uploads are out of scope.
+The app shows a static TPBank VietQR card using the `compact` image template, which retains VietQR, NAPAS, and bank logos without repeating transfer details. Show the recipient name, bank, and account once below the QR, with the account grouped for readability. Bé Lin tells the Admin after transferring. The Admin confirms and allocates payment to orders manually. Bank APIs, transfer notifications, and receipt uploads are out of scope.
 
 ## 2026-11-21 — Data source
 
@@ -66,6 +66,8 @@ Use a vertical left navigation sidebar on desktop and a compact horizontal navig
 
 Application records are never hard-deleted. Admin can soft-delete an unpaid order only when it has no payment allocations; the row remains visible as “Đã Xóa”, is excluded from debt totals, and can be restored while its cycle is open. Orders with any allocation, including paid orders, use the cancellation/refund flow. Reopening a billing cycle marks its closing snapshot as reopened and retains it; a later close creates a new snapshot version. App database roles must not have direct DELETE access to business tables.
 
+The restore confirmation dialog shows the order description in a compact preview, explains that the restored order returns to **Chưa Thanh Toán**, and uses an X close control. Its actions remain easy to tap on mobile.
+
 ## 2026-11-22 — Optional Shopee order URL
 
 An order may store a validated Shopee purchase URL. Admin can open it using the View action in a new tab. Historical workbook rows do not include regular Shopee order URLs, so their View actions remain disabled until a URL is added.
@@ -123,6 +125,14 @@ Show the signed-in role centered beneath the display name in the sidebar profile
 
 Style “Kỳ Hiện Tại” as a neutral gray metric label and show the cycle label with its full 21st-to-20th date range beneath it; the label already supplies the word “Kỳ”. Include the range in the cycle filter and report selector, but keep the Orders table cycle column compact with only the month/year label.
 
+## 2026-11-22 — Persistent Orders filters and select-all
+
+Keep the cycle and status filter controls visible beside Orders search; there is no separate parent filter open/close control. When entering Orders, select and apply the newest billing cycle for both roles; the status selector starts with no statuses checked, meaning all statuses. Both selectors expose a **Chọn Tất Cả** checkbox. Keep **Áp Dụng Bộ Lọc** explicit so users can stage multiple choices. Give desktop selectors stable widths so changing the selected-count label does not move adjacent controls; let mobile selectors fill their grid columns. Cycle and status option menus are mutually exclusive to prevent overlap; retain the searchable, fixed-height cycle list and existing outside-click/Escape behavior. Show both option groups as single-column lists.
+
+Keep each filter selector summary at a fixed 46px height. Summary text remains on one line and truncates with an ellipsis when needed; the full selection summary remains available to assistive technology. Selection changes must not wrap text or shift adjacent controls.
+
+Treat an empty cycle or status selection as no restriction, so all cycles or statuses match. If there are no cycles, do not restrict the list. Keep **Áp Dụng Bộ Lọc** available when nothing is selected; selecting **Chọn Tất Cả** explicitly checks every option. After the user clears the default newest-cycle selection and applies, keep the staged cycle selection empty so reopening the menu leaves its options visibly unchecked.
+
 ## 2026-11-22 — Cycle range filter layout
 
 Render cycle filter options in a single-column scroll list. Put the checkbox at the left, cycle label on the first line, and a smaller date range on the second line so dates remain associated with the correct option on narrow screens.
@@ -130,3 +140,31 @@ Render cycle filter options in a single-column scroll list. Put the checkbox at 
 ## 2026-11-22 — Admin deleted-order filter
 
 Always show the **Đã Xóa** status choice in the Admin order filter, including when there are currently no deleted orders. Viewer remains read-only and does not get this Admin-only filter choice unless retained deleted history is present in their order list.
+
+## 2026-11-22 — Shopee completion and cancellation
+
+“Chưa Thanh Toán” corresponds to a Shopee order waiting for delivery/transport. “Đã Thanh Toán” means the Shopee order is complete, so the app must disable editing and must not offer cancellation or refunds. Cancellation is available only for an unpaid order stopped by Shopee before completion; any refund entry is limited to the amount previously allocated to that order. Enforce this rule in both UI and `cancel_order` RPC.
+
+## 2026-11-22 — Overview payment metric
+
+Remove the Overview “Tổng đã thanh toán” metric. Payment totals remain available in period reports, where they are tied to a billing cycle and can be reconciled against its ledger.
+
+## 2026-11-22 — Whole-order payment confirmation
+
+One payment may cover multiple selected orders, but each selected order must be settled for its full outstanding balance. The app derives the amount, shows a custom confirmation dialog with order count and total, and records nothing if the user dismisses it. The database RPC rejects underpayment/overpayment against selected outstanding balances. Preserve historical imported allocations as-is; any historical remainder stays “Chưa Thanh Toán”. Do not show “Trả Một Phần” as a status/filter. Orders status labels are “Chưa Thanh Toán” and “Đã Thanh Toán”.
+
+## 2026-11-22 — Custom action dialogs
+
+Application confirmations, prompts, and errors use in-app ShopeeLin dialogs or inline form messages. Do not use native browser `alert`, `confirm`, or `prompt` for product actions. Browser print remains native because PDF export uses the print dialog.
+
+## 2026-11-22 — Shopee orange action contrast
+
+Use Shopee orange as the shared brand accent and a closely related, accessible darker orange for primary action backgrounds with white text. Hover and active states use a darker shade from the same orange family. Keep the palette centralized in CSS tokens; automated UI checks cover primary action contrast and its relationship to the brand accent.
+
+## 2026-11-22 — Tab navigation URL state
+
+Store the active application tab in the `tab` query parameter so refresh and browser Back/Forward restore the selected view. Keep Overview at the clean root URL. Use query state instead of nested paths because the app is hosted on GitHub Pages without an SPA fallback; preserve unrelated query parameters and the hash used by Supabase Auth callbacks. Allow only known tab keys, and route a Viewer away from the Admin-only Accounts tab.
+
+## 2026-11-22 — Admin-managed payment display
+
+Expose payment display settings in a dedicated Admin-only **Thanh Toán** tab. Admin can upload the full QR image and edit its note. Display that uploaded image without repeating bank/account details beneath it. Validate that the upload is a supported readable image within the limit, but do not decode or claim to verify the QR destination. Persist current settings in Supabase; store each QR revision in private Storage and retain old objects rather than hard-deleting them. All authenticated users may read current settings and the QR image; only Admin may write them.
