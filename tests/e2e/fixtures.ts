@@ -29,6 +29,7 @@ type MockClosing = { billing_cycle_id: string; opening_balance: number; purchase
 type MockLedgerEntry = { id: string; billing_cycle_id: string; entry_date: string; kind: string; amount: number; description: string }
 type MockInstallmentSummary = { id: string; name: string; total_amount: number; total_paid: number }
 type MockInstallmentPayment = { id: string; plan_id: string; paid_at: string; amount: number; note: string | null }
+type MockPaymentSettings = { singleton: true; note: string; qr_image_path: string | null; updated_at: string; updated_by: string | null }
 type MockSeed = {
   orders?: MockOrder[]
   cycles?: MockCycle[]
@@ -38,6 +39,7 @@ type MockSeed = {
   ledgerEntries?: MockLedgerEntry[]
   installmentSummary?: MockInstallmentSummary[]
   installmentPayments?: MockInstallmentPayment[]
+  paymentSettings?: MockPaymentSettings
 }
 
 const userIds: Record<TestRole, string> = {
@@ -90,6 +92,13 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
     ledgerEntries: [...(seed.ledgerEntries ?? [])],
     installmentSummary: [...(seed.installmentSummary ?? [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 2_000_000 }])],
     installmentPayments: [...(seed.installmentPayments ?? [])],
+    paymentSettings: seed.paymentSettings ?? {
+      singleton: true,
+      note: 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘',
+      qr_image_path: null,
+      updated_at: '2026-11-22T00:00:00.000Z',
+      updated_by: userIds.admin,
+    },
     storageObjects: new Set<string>(),
     requests: [] as { method: string; path: string; query: string; body: any }[],
   }
@@ -104,7 +113,7 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
     if (request.postData()) {
       try { body = request.postDataJSON() } catch { body = null }
     }
-    if (url.pathname.startsWith('/auth/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/functions/v1/')) {
+    if (url.pathname.startsWith('/auth/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/functions/v1/') || url.pathname.startsWith('/storage/v1/')) {
       state.requests.push({ method, path: url.pathname, query: url.search, body })
     }
 
@@ -181,6 +190,8 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         data = [...state.ledgerEntries]
       } else if (table === 'cycle_closings') {
         data = [...state.closings]
+      } else if (table === 'payment_settings') {
+        data = state.paymentSettings
       }
 
       if (method === 'POST' && table === 'installment_plans') {
@@ -211,6 +222,21 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
 
     if (url.pathname.startsWith('/storage/v1/object/')) {
       const parts = url.pathname.split('/').filter(Boolean)
+      if (method === 'POST' && parts[3] === 'sign' && parts[4] === 'payment-qr') {
+        const objectPath = decodeURIComponent(parts.slice(5).join('/'))
+        await route.fulfill({ status: 200, json: { signedURL: `/storage/v1/object/sign/payment-qr/${objectPath}?token=mock` } })
+        return
+      }
+      if (method === 'GET' && parts[3] === 'sign' && parts[4] === 'payment-qr') {
+        await route.fulfill({ status: 200, contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320"><rect width="320" height="320" fill="white"/><path d="M20 20h280v280H20z" fill="none" stroke="#ee4d2d" stroke-width="8"/></svg>' })
+        return
+      }
+      if (method === 'POST' && parts[3] === 'payment-qr') {
+        const objectPath = decodeURIComponent(parts.slice(4).join('/'))
+        state.storageObjects.add(objectPath)
+        await route.fulfill({ status: 200, json: { Key: `payment-qr/${objectPath}` } })
+        return
+      }
       if (method === 'POST' && parts[3] === 'profile-avatars') {
         const objectPath = decodeURIComponent(parts.slice(4).join('/'))
         state.storageObjects.add(objectPath)
@@ -228,6 +254,18 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       }
     }
 
+    if (url.pathname === '/rest/v1/rpc/update_payment_settings' && method === 'POST') {
+      state.paymentSettings = {
+        ...state.paymentSettings,
+        note: body.p_note,
+        qr_image_path: body.p_qr_image_path,
+        updated_at: new Date().toISOString(),
+        updated_by: userId,
+      }
+      await route.fulfill({ status: 204 })
+      return
+    }
+
     if (url.pathname === '/rest/v1/rpc/record_order_payment' && method === 'POST') {
       const paymentId = newId()
       let remaining = Number(body.p_amount)
@@ -236,6 +274,11 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         .sort((a, b) => a.placed_at.localeCompare(b.placed_at))
       const allocatedByOrder = new Map<string, number>()
       for (const allocation of state.allocations) allocatedByOrder.set(allocation.order_id, (allocatedByOrder.get(allocation.order_id) ?? 0) + allocation.amount)
+      const requiredTotal = selected.reduce((sum, order) => sum + order.amount - (allocatedByOrder.get(order.id) ?? 0), 0)
+      if (selected.length !== body.p_order_ids.length || !Number.isSafeInteger(body.p_amount) || body.p_amount !== requiredTotal) {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Payment must fully settle all selected orders' } })
+        return
+      }
       for (const order of selected) {
         if (remaining <= 0) break
         const alreadyAllocated = allocatedByOrder.get(order.id) ?? 0
@@ -331,6 +374,10 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order not found' } })
         return
       }
+      if (order.status === 'paid') {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Completed Shopee orders cannot be cancelled or refunded' } })
+        return
+      }
       const refundedPreviously = state.ledgerEntries.filter((entry) => entry.kind === 'refund' && entry.description === body.p_note).reduce((sum, entry) => sum + entry.amount, 0)
       const received = state.allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
       if (!Number.isSafeInteger(body.p_refund_amount) || body.p_refund_amount < 0 || body.p_refund_amount + refundedPreviously > received) {
@@ -420,7 +467,19 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
   return state
 }
 
-export const test = base.extend<{ expectNoHorizontalOverflow: () => Promise<void> }>({
+export const test = base.extend<{
+  expectNoHorizontalOverflow: () => Promise<void>
+  browserDialogGuard: void
+}>({
+  browserDialogGuard: [async ({ page }, use) => {
+    const dialogs: string[] = []
+    page.on('dialog', async (dialog) => {
+      dialogs.push(dialog.type())
+      await dialog.dismiss()
+    })
+    await use()
+    expect(dialogs, 'Application interactions must use designed dialogs, not browser-native alerts').toEqual([])
+  }, { auto: true }],
   expectNoHorizontalOverflow: async ({ page }, use) => {
     await use(async () => {
       const dimensions = await page.evaluate(() => ({
@@ -443,6 +502,6 @@ export async function signIn(page: Page, role: TestRole) {
     await page.getByLabel('Mật Khẩu').fill('test-password')
     await page.getByRole('button', { name: 'Đăng nhập' }).click()
   }
-  await expect(page.getByRole('button', { name: 'ShopeeLin — Tổng Quan' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'ShopeeLin', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
 }
