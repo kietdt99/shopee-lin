@@ -903,6 +903,47 @@ test('filter and order dialog can be used immediately without waiting for motion
   await expect(dialog.getByLabel('Mô Tả Đơn Hàng')).toHaveValue('Created without waiting for motion')
 })
 
+test('reducing motion keeps an open filter and its content usable, then saves from the order dialog', async ({ page }) => {
+  await mockSupabase(page, 'admin', {
+    cycles: [mayCycle],
+    orders: [{ id: 'motion-toggle-order', description: 'Existing motion toggle order', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id }],
+  })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  const cycleMenu = page.locator('.cycle-filter-select .filter-select-menu')
+  await page.locator('.cycle-filter-select > summary').click()
+  await expect(cycleMenu).toBeVisible()
+  await expect(cycleMenu.getByRole('group', { name: 'Kỳ Sổ' })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' })).toBeVisible()
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(cycleMenu).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' })).toBeVisible()
+  const menuDurations = await cycleMenu.evaluate((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+  }))
+  expect(parseFloat(menuDurations.animation)).toBeLessThanOrEqual(0.00002)
+  expect(parseFloat(menuDurations.transition)).toBeLessThanOrEqual(0.00002)
+
+  await page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' }).uncheck()
+  await page.getByLabel('05.2026 (21/04/2026 – 20/05/2026)').check()
+  await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
+  await expect(page.locator('.order-row')).toContainText('Existing motion toggle order')
+
+  await page.getByRole('button', { name: 'Thêm Đơn Hàng' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('Mô Tả Đơn Hàng')).toBeVisible()
+  await dialog.getByLabel('Mô Tả Đơn Hàng').fill('Saved with reduced motion')
+  await dialog.getByLabel('Ngày Đặt').fill('2026-05-05')
+  await dialog.getByLabel('Số Tiền (VND)').fill('2500')
+  await dialog.getByRole('button', { name: 'Lưu Đơn Hàng' }).click()
+  await expect(page.locator('.order-row').filter({ hasText: 'Saved with reduced motion' })).toBeVisible()
+})
+
 test('cycle and status filter popovers stay clear of the toolbar and inside narrow viewports', async ({ page, expectNoHorizontalOverflow }) => {
   await mockSupabase(page, 'admin', {
     cycles: [mayCycle, juneCycle],
