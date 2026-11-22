@@ -5,9 +5,10 @@ This checklist is the release QA plan for v0.1.3. It describes expected behavior
 ### Latest verification — 2026-11-23
 
 - Final-candidate full-suite stability gate passed three consecutive times with no failures/retries: port bases 5473 (400 passed, 8 intentional mobile performance skips, 8.2m), 5573 (400 passed, 8 intentional mobile performance skips, 8.1m), and 5673 (400 passed, 8 intentional mobile performance skips, 8.3m). The suite covered Chrome/Edge desktop, 390px/320px mobile emulation, hosted-auth routing mocks, accessibility, QR fallback/download, role paths, order filters/sort/actions, and cycle payment summaries including multiple-cycle selection. These are mocked browser checks, not physical-device, hosted-auth, or production database verification.
+- After integrating the exact tested candidate tree into a separate local `main` worktree, `pnpm test:unit` passed 37/37 and `pnpm test:bundle` passed (1,633 modules; JS 123.2 KiB gzip / 250 KiB budget; CSS 6.7 KiB / 50 KiB budget). `git diff --check origin/main..main` passed. The original shared user worktree and its dirty `docs/test-plan.md` were left unchanged.
 - The run exposed and closed two findings: Login password field selectors became ambiguous after adding the reveal button; UI tests now select the textbox by role. The cycle summary's supporting gray text failed axe at 3.72:1; the color was darkened and desktop/mobile axe checks passed in the full run.
 - Auth regression checks now pass for valid setup state, expired-link routing, normal-login failure, refresh/new-tab session restore and stale-marker behavior on Chrome/Edge. These use mocked Auth and do not verify real hosted/local recovery links.
-- Local Supabase was verified at loopback and the existing API/RLS probe passed on 2026-11-23. Coverage gaps remain for payment-settings authorization, profile/avatar cross-user access, and financial invariants/concurrency.
+- The configured user worktree's local API/RLS probe passed against loopback Supabase on 2026-11-23. In the clean integration worktree, `pnpm test:api:local` stopped before sending any API request because its ignored local config was absent. Coverage gaps remain for payment-settings authorization, profile/avatar cross-user access, and financial invariants/concurrency; production policy behavior is unverified.
 
 ### Historical verification — 2026-11-22
 

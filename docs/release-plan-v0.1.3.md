@@ -2,7 +2,20 @@
 
 Status: draft backlog, updated 2026-11-23. This plan is the working scope for v0.1.3; it does not authorize production changes or deployment. Items marked **Needs decision** are proposals, not committed product requirements.
 
-Baseline: `origin/release/v0.1.2` at `32e4f62`. Current candidate implementation is on local branch `feature/v0.1.3-integration` (source commits through `42f2895`); QA changes are on `test/v0.1.3-integration` (through `49317fc`). Final candidate Playwright stability passed three consecutive full runs: 400 passed / 8 intentional mobile performance skips per run, zero retries, on port bases 5473, 5573, and 5673. This is local/mock evidence only, not hosted Auth or physical-device verification. No release branch, production migration, or deployment has been made.
+Baseline: `origin/release/v0.1.2` at `32e4f62`. Candidate source and QA are integrated on the local `main` worktree at `1aba827`; the original shared worktree remains untouched. Final candidate Playwright stability passed three consecutive full runs: 400 passed / 8 intentional mobile performance skips per run, zero retries, on port bases 5473, 5573, and 5673. This is local/mock evidence only, not hosted Auth or physical-device verification. No release branch, push, production migration, or deployment has been made.
+
+## Current readiness — 2026-11-23
+
+The local candidate is internally integrated and its automated release gates pass: three stable Chrome/Edge full-suite runs, 37/37 unit tests, production build and bundle budgets, plus `git diff --check`. The local API/RLS baseline probe previously passed from the configured user worktree. Running it from the new clean integration worktree stopped before making an API request because the ignored local Supabase config is not present there; do not copy private environment files between worktrees.
+
+Production release remains blocked on these checks:
+
+- Physical S23 Ultra review of the current candidate screens, plus saving the Viewer QR and selecting it from a banking app on that same phone.
+- Hosted Admin/Viewer Auth and session-return smoke; browser tests currently mock Auth.
+- Remaining local API/RLS and Storage authorization checks, financial invariant and concurrency checks, and hosted migration-history reconciliation.
+- A production-safe fixture plan and hosted product smoke, followed by Pages/Chrome/Edge smoke and the external PR/CI review.
+
+No production mutation, release branch cut, remote push, or deployment has occurred. The current task prepares the local candidate; these gates must be completed before production release.
 
 ## Release intent
 
@@ -39,7 +52,7 @@ Each implementation/test task must use its own branch/worktree and bounded file 
 
 | ID | Small task | Acceptance criteria | Owner / branch | Status |
 | --- | --- | --- | --- | --- |
-| MOB-1 | Compare the current v0.1.2 build (not the video’s v0.1.0 UI) against the customer’s S23 Ultra. | Record current build/version, browser/device viewport and scale, and screenshots for login, navigation/profile, Orders/search/filter/sort, dialogs, and QR payment. Explicitly check the Orders date label/value spacing fix on the current build. Distinguish app UI from Android/browser chrome. | QA + device owner / `test/mobile-current-build-qa` | Needs device check |
+| MOB-1 | Compare the current v0.1.3 candidate (not the video’s v0.1.0 UI) against the customer’s S23 Ultra. | Record current build/version, browser/device viewport and scale, and screenshots for login, navigation/profile, Orders/search/filter/sort, dialogs, and QR payment. Explicitly check the Orders date label/value spacing fix on the current build. Distinguish app UI from Android/browser chrome. | QA + device owner / `test/mobile-current-build-qa` | Needs device check |
 | MOB-2 | Turn confirmed S23 Ultra issues into separate small UI fixes (one component per branch/task). | Each defect has before/after evidence; no page-level horizontal overflow, clipped controls, obstructed keyboard fields, or overlapping popovers at 320/390 CSS px and the device’s actual viewport. Confirm the date-spacing correction remains present. Respect the existing mobile-first design. | Mobile owner / `feature/mobile-current-build-polish`; depends MOB-1 | Open |
 | MOB-3 | Verify Viewer payment QR can be saved and selected from a banking app on the same phone. | On a real Android device, QR image download succeeds, appears in the image picker, and remains readable; fallback guidance is clear. If system/browser restrictions prevent this, document the constraint and an alternate flow. | QA/device owner / `test/mobile-current-build-qa` | Needs device check |
 
