@@ -14,6 +14,15 @@ create table public.profiles (
   created_at timestamptz not null default now()
 );
 
+create table public.payment_settings (
+  singleton boolean primary key default true check (singleton),
+  note text not null default 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘'
+    check (char_length(btrim(note)) between 1 and 300),
+  qr_image_path text,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references auth.users(id) on delete restrict
+);
+
 create table public.billing_cycles (
   id uuid primary key default gen_random_uuid(),
   label text not null unique,
@@ -110,6 +119,10 @@ $$;
 create trigger prevent_hard_delete_profiles before delete on public.profiles
   for each row execute function public.reject_app_hard_delete();
 create trigger prevent_truncate_profiles before truncate on public.profiles
+  for each statement execute function public.reject_app_hard_delete();
+create trigger prevent_hard_delete_payment_settings before delete on public.payment_settings
+  for each row execute function public.reject_app_hard_delete();
+create trigger prevent_truncate_payment_settings before truncate on public.payment_settings
   for each statement execute function public.reject_app_hard_delete();
 create trigger prevent_hard_delete_billing_cycles before delete on public.billing_cycles
   for each row execute function public.reject_app_hard_delete();
@@ -355,6 +368,7 @@ left join public.installment_payments ip on ip.plan_id = p.id
 group by p.id;
 
 alter table public.profiles enable row level security;
+alter table public.payment_settings enable row level security;
 alter table public.billing_cycles enable row level security;
 alter table public.orders enable row level security;
 alter table public.payments enable row level security;
@@ -451,6 +465,7 @@ declare
   selected_order_ids uuid[];
   selected_cycle_ids uuid[];
   payment_cycle_ids uuid[];
+  selected_outstanding bigint;
 begin
   if not public.is_admin() then raise exception 'Only an admin can record a payment'; end if;
   if p_amount is null or p_amount <= 0 or coalesce(array_length(p_order_ids, 1), 0) = 0 then
@@ -502,6 +517,19 @@ begin
       and (o.deleted_at is not null or o.status <> 'unpaid')
   ) then raise exception 'Only active unpaid orders can receive a payment'; end if;
 
+  select coalesce(sum(o.amount - coalesce(allocated.total, 0)), 0)::bigint
+  into selected_outstanding
+  from public.orders o
+  left join (
+    select order_id, sum(amount)::bigint as total
+    from public.payment_allocations group by order_id
+  ) allocated on allocated.order_id = o.id
+  where o.id = any(p_order_ids) and o.status = 'unpaid' and o.deleted_at is null;
+
+  if p_amount <> selected_outstanding then
+    raise exception 'Payment amount must fully settle every selected order';
+  end if;
+
   insert into public.payments(paid_at, amount, note) values (p_paid_at, p_amount, p_note) returning id into new_payment_id;
   for order_row in
     select o.id, o.amount, coalesce(sum(a.amount), 0)::bigint already_paid
@@ -521,7 +549,7 @@ begin
       end if;
     end if;
   end loop;
-  if remaining_amount > 0 then raise exception 'Selected orders cannot absorb the full payment amount'; end if;
+  if remaining_amount <> 0 then raise exception 'Selected orders changed; payment could not settle every order'; end if;
   return new_payment_id;
 end;
 $$;
@@ -615,6 +643,8 @@ begin
   if order_row.billing_cycle_id is distinct from order_cycle_id then raise exception 'Order changed while cancellation was processing'; end if;
   if order_row.deleted_at is not null then raise exception 'Restore the order before cancelling it'; end if;
   if order_row.status = 'cancelled' then raise exception 'Order is already cancelled'; end if;
+  if order_row.status = 'paid' then raise exception 'Completed Shopee orders cannot be cancelled or refunded'; end if;
+  if order_row.status <> 'unpaid' then raise exception 'Only unpaid Shopee orders can be cancelled'; end if;
 
   select coalesce(sum(amount), 0)::bigint into refunded from public.payment_allocations where order_id = p_order_id;
   if p_refund_amount is null or p_refund_amount < 0 or p_refund_amount > refunded then raise exception 'Refund amount exceeds received allocation'; end if;
@@ -735,6 +765,42 @@ create trigger protect_closed_cycle_orders before insert or update or delete on 
 for each row execute function public.reject_closed_cycle_order_write();
 
 create policy "read profiles" on public.profiles for select to authenticated using (id = auth.uid() or public.is_admin());
+create policy "read payment settings" on public.payment_settings for select to authenticated using (true);
+
+create or replace function public.update_payment_settings(p_note text, p_qr_image_path text)
+returns void language plpgsql security definer set search_path = pg_catalog, public, storage as $$
+declare
+  clean_note text := btrim(p_note);
+begin
+  if auth.uid() is null or not public.is_admin() then
+    raise exception 'Only an authenticated admin can update payment settings';
+  end if;
+  if clean_note is null or char_length(clean_note) < 1 or char_length(clean_note) > 300 then
+    raise exception 'Payment note must be between 1 and 300 characters';
+  end if;
+  if p_qr_image_path is not null then
+    if p_qr_image_path !~ '^[A-Za-z0-9_-]+/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$' then
+      raise exception 'Payment QR image path is invalid';
+    end if;
+    if not exists (
+      select 1 from storage.objects o
+      where o.bucket_id = 'payment-qr' and o.name = p_qr_image_path
+    ) then
+      raise exception 'Payment QR image upload was not found';
+    end if;
+  end if;
+
+  insert into public.payment_settings as current_settings (singleton, note, qr_image_path, updated_at, updated_by)
+  values (true, clean_note, p_qr_image_path, now(), auth.uid())
+  on conflict (singleton) do update
+  set note = excluded.note,
+      qr_image_path = coalesce(excluded.qr_image_path, current_settings.qr_image_path),
+      updated_at = excluded.updated_at,
+      updated_by = excluded.updated_by;
+end;
+$$;
+revoke all on function public.update_payment_settings(text, text) from public, anon;
+grant execute on function public.update_payment_settings(text, text) to authenticated;
 
 create or replace function public.update_my_profile(p_display_name text, p_avatar_path text)
 returns void language plpgsql security definer set search_path = pg_catalog, public as $$
@@ -802,13 +868,26 @@ create policy "profile avatar owner uploads" on storage.objects for insert to au
     and (storage.foldername(name))[1] = auth.uid()::text
     and name ~ ('^' || auth.uid()::text || '/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$'));
 
-revoke insert, update, delete, truncate on table public.profiles, public.billing_cycles, public.orders,
+revoke insert, update, delete, truncate on table public.profiles, public.payment_settings, public.billing_cycles, public.orders,
   public.payments, public.payment_allocations, public.installment_plans, public.installment_payments,
   public.ledger_entries, public.cycle_closings from public, anon, authenticated;
+revoke all on table public.payment_settings from public, anon, authenticated;
+grant select on table public.payment_settings to authenticated;
 grant insert (label, starts_on, ends_on) on table public.billing_cycles to authenticated;
 grant insert (placed_at, description, amount, billing_cycle_id, notes, shopee_order_url)
   on table public.orders to authenticated;
 grant insert (name, total_amount) on table public.installment_plans to authenticated;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('payment-qr', 'payment-qr', false, 2097152, array['image/jpeg', 'image/png', 'image/webp']::text[])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+create policy "authenticated users read payment QR" on storage.objects for select to authenticated
+  using (bucket_id = 'payment-qr');
+create policy "admins upload payment QR" on storage.objects for insert to authenticated
+  with check (bucket_id = 'payment-qr'
+    and public.is_admin()
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and name ~ ('^' || auth.uid()::text || '/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$'));
 
 -- Keep application RPCs private to the signed-in app roles. PostgreSQL grants
 -- EXECUTE to PUBLIC by default, and removing PUBLIC alone does not remove the
@@ -854,5 +933,7 @@ revoke all on function public.update_my_display_name(text) from public, anon;
 grant execute on function public.update_my_display_name(text) to authenticated;
 revoke all on function public.update_my_profile(text, text) from public, anon;
 grant execute on function public.update_my_profile(text, text) to authenticated;
+revoke all on function public.update_payment_settings(text, text) from public, anon;
+grant execute on function public.update_payment_settings(text, text) to authenticated;
 
 -- The first passwordless sign-in automatically creates and assigns the two allowlisted users.

@@ -10,6 +10,7 @@ $schemaSource = Join-Path $projectRoot 'supabase\schema.sql'
 $financialRpcMigrationSource = Join-Path $projectRoot 'supabase\migrations\20261121_z_serialize_order_financial_rpcs.sql'
 $softDeleteMigrationSource = Join-Path $projectRoot 'supabase\migrations\20261122100000_soft_delete_and_append_only_history.sql'
 $installmentGuardsMigrationSource = Join-Path $projectRoot 'supabase\migrations\20261122130000_installment_payment_guards.sql'
+$orderCompletionRulesMigrationSource = Join-Path $projectRoot 'supabase\migrations\20261122140000_enforce_order_completion_rules.sql'
 $profileAvatarMigrationSource = Join-Path $projectRoot 'supabase\migrations\20261122120000_profile_avatars.sql'
 $legacyImportSqlPath = Join-Path $projectRoot 'supabase\local\import_legacy.sql'
 $legacyImportApplySqlPath = Join-Path $projectRoot 'supabase\local\import_legacy_apply.sql'
@@ -94,6 +95,7 @@ Copy-Item -LiteralPath $financialRpcMigrationSource -Destination (Join-Path $mig
 Copy-Item -LiteralPath $softDeleteMigrationSource -Destination (Join-Path $migrationDir '20261122100000_soft_delete_and_append_only_history.sql') -Force
 Copy-Item -LiteralPath $profileAvatarMigrationSource -Destination (Join-Path $migrationDir '20261122120000_profile_avatars.sql') -Force
 Copy-Item -LiteralPath $installmentGuardsMigrationSource -Destination (Join-Path $migrationDir '20261122130000_installment_payment_guards.sql') -Force
+Copy-Item -LiteralPath $orderCompletionRulesMigrationSource -Destination (Join-Path $migrationDir '20261122140000_enforce_order_completion_rules.sql') -Force
 
 $dockerCli = Get-Command docker -ErrorAction SilentlyContinue
 if (-not $dockerCli) {
