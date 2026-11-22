@@ -331,6 +331,10 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order not found' } })
         return
       }
+      if (order.status === 'paid') {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Completed Shopee orders cannot be cancelled or refunded' } })
+        return
+      }
       const refundedPreviously = state.ledgerEntries.filter((entry) => entry.kind === 'refund' && entry.description === body.p_note).reduce((sum, entry) => sum + entry.amount, 0)
       const received = state.allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
       if (!Number.isSafeInteger(body.p_refund_amount) || body.p_refund_amount < 0 || body.p_refund_amount + refundedPreviously > received) {

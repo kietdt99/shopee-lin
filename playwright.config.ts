@@ -18,34 +18,68 @@ export default defineConfig({
   },
   projects: [
     {
-      name: 'desktop-chromium',
+      name: 'chrome-desktop',
       testIgnore: '**/qr-fallback.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
     },
     {
-      name: 'mobile-390-chromium',
+      name: 'edge-desktop',
+      testIgnore: '**/qr-fallback.spec.ts',
+      use: { ...devices['Desktop Chrome'], channel: 'msedge' },
+    },
+    {
+      name: 'chrome-mobile-390',
       testIgnore: '**/qr-fallback.spec.ts',
       use: {
         ...devices['Pixel 7'],
+        channel: 'chrome',
         viewport: { width: 390, height: 844 },
-        defaultBrowserType: 'chromium',
       },
     },
     {
-      name: 'mobile-320-chromium',
+      name: 'edge-mobile-390',
+      testIgnore: '**/qr-fallback.spec.ts',
+      use: {
+        ...devices['Pixel 7'],
+        channel: 'msedge',
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
+      name: 'chrome-mobile-320',
       testIgnore: '**/qr-fallback.spec.ts',
       use: {
         viewport: { width: 320, height: 800 },
         isMobile: true,
         hasTouch: true,
-        defaultBrowserType: 'chromium',
+        channel: 'chrome',
       },
     },
     {
-      name: 'qr-fallback-chromium',
+      name: 'edge-mobile-320',
+      testIgnore: '**/qr-fallback.spec.ts',
+      use: {
+        viewport: { width: 320, height: 800 },
+        isMobile: true,
+        hasTouch: true,
+        channel: 'msedge',
+      },
+    },
+    {
+      name: 'chrome-qr-fallback',
       testMatch: '**/qr-fallback.spec.ts',
       use: {
         ...devices['Desktop Chrome'],
+        channel: 'chrome',
+        baseURL: `http://127.0.0.1:${qrFallbackPort}`,
+      },
+    },
+    {
+      name: 'edge-qr-fallback',
+      testMatch: '**/qr-fallback.spec.ts',
+      use: {
+        ...devices['Desktop Chrome'],
+        channel: 'msedge',
         baseURL: `http://127.0.0.1:${qrFallbackPort}`,
       },
     },

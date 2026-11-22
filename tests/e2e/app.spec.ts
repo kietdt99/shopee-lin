@@ -185,10 +185,12 @@ test('User can update own profile name while email remains read-only', async ({ 
   await expect(page.locator('.sidebar-profile-role')).toHaveText('Viewer')
   await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
-  const email = dialog.getByLabel('Email (Chỉ Xem)')
+  const email = dialog.getByLabel('Email')
   await expect(email).toHaveValue('viewer@example.test')
   await expect(email).not.toBeEditable()
   await expect(email).toHaveAttribute('readonly')
+  await expect(email).toHaveCSS('background-color', 'rgb(247, 246, 245)')
+  await expect(dialog.getByText('Email (Chỉ Xem)')).toHaveCount(0)
   await expect(dialog.locator('.required-marker')).toHaveText('*')
   await expect(dialog.getByLabel('Tên Hiển Thị')).toHaveJSProperty('required', true)
   await expectRequiredMarkerInline(dialog.locator('.label-title'))
@@ -206,7 +208,7 @@ test('Admin profile email is view-only and display name is required', async ({ p
   await page.getByRole('button', { name: 'Hồ Sơ' }).click()
 
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
-  const email = dialog.getByLabel('Email (Chỉ Xem)')
+  const email = dialog.getByLabel('Email')
   await expect(email).toHaveValue('admin@example.test')
   await expect(email).not.toBeEditable()
   await expect(email).toHaveAttribute('readonly')
@@ -281,7 +283,7 @@ for (const role of ['admin', 'viewer'] as const) {
     await expect(currentCycle.locator('.overview-cycle-label')).toHaveCSS('color', 'rgb(113, 107, 103)')
     await expect(currentCycle.getByRole('heading', { name: /^\d{2}\.\d{4} \(\d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}\)$/ })).toBeVisible()
     await expect(currentCycle.locator('.status-pill')).toHaveCount(0)
-    await expect(page.getByText('Tổng đã thanh toán')).toHaveCount(role === 'admin' ? 1 : 0)
+    await expect(page.getByText('Tổng đã thanh toán')).toHaveCount(0)
     await expect(page.locator('.sidebar-profile-role')).toHaveText(role === 'admin' ? 'Admin' : 'Viewer')
   })
 }
@@ -357,7 +359,8 @@ test('Viewer profile avatar upload is private and email is read-only', async ({ 
   await signIn(page, 'viewer')
   await page.getByRole('button', { name: 'Hồ Sơ' }).click()
   const dialog = page.getByRole('dialog', { name: 'Hồ Sơ' })
-  await expect(dialog.getByLabel('Email (Chỉ Xem)')).not.toBeEditable()
+  await expect(dialog.getByLabel('Email')).not.toBeEditable()
+  await expect(dialog.getByText('Email (Chỉ Xem)')).toHaveCount(0)
   const fileInput = dialog.getByLabel('Chọn ảnh đại diện')
 
   await fileInput.setInputFiles({ name: 'not-image.pdf', mimeType: 'application/pdf', buffer: Buffer.from('file') })
@@ -508,6 +511,26 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
   await expectNoHorizontalOverflow()
 })
 
+test('long order descriptions expand to use available desktop table width', async ({ page }) => {
+  const longDescription = 'Áo tràng phật tử nam nữ kate lụa cao cấp, áo dài lam đi chùa form rộng mềm mại Thiên Di D21 Phân loại hàng: Lam,L x1 '.repeat(5)
+  await mockSupabase(page, 'admin', {
+    orders: [{ id: 'order-long-desktop', description: longDescription, placed_at: '2026-05-19', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id }],
+    cycles: [mayCycle],
+  })
+  await signIn(page, 'admin')
+  await page.setViewportSize({ width: 2560, height: 1440 })
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+
+  const table = page.locator('.orders-table')
+  const description = page.locator('.order-row .order-item-lines')
+  const tableBounds = await table.boundingBox()
+  const descriptionBounds = await description.boundingBox()
+  expect(tableBounds).not.toBeNull()
+  expect(descriptionBounds).not.toBeNull()
+  expect(descriptionBounds!.width, 'long descriptions should be allowed beyond the former 640px cap').toBeGreaterThan(640)
+  expect(descriptionBounds!.width).toBeGreaterThan(tableBounds!.width * 0.45)
+})
+
 test('Order search applies on Enter or the search button, and filters stage until Apply', async ({ page, expectNoHorizontalOverflow }) => {
   const orders: MockOrder[] = [
     { id: '11111111-1111-4111-8111-111111111111', description: 'Chè dưỡng nhan', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id },
@@ -528,18 +551,29 @@ test('Order search applies on Enter or the search button, and filters stage unti
   await expect(page.locator('.order-row').filter({ hasText: 'Chè dưỡng nhan' }).locator('td').nth(4)).toHaveText('05.2026')
 
   const search = page.getByLabel('Tìm Kiếm Đơn Hàng')
+  const clearSearch = page.getByRole('button', { name: 'Xóa Tìm Kiếm' })
+  await expect(clearSearch).toHaveCount(0)
   await search.fill('sen')
+  await expect(clearSearch).toBeVisible()
+  const clearBounds = await clearSearch.boundingBox()
+  const searchBounds = await page.getByRole('button', { name: 'Tìm Kiếm' }).boundingBox()
+  expect(clearBounds).not.toBeNull()
+  expect(searchBounds).not.toBeNull()
+  expect(clearBounds!.x).toBeLessThan(searchBounds!.x)
   await expect(rows).toHaveCount(3)
   await search.press('Enter')
   await expect(rows).toHaveCount(1)
   await expect(rows.first()).toContainText('Trà sen')
+  await clearSearch.click()
+  await expect(search).toHaveValue('')
+  await expect(rows).toHaveCount(3)
 
   await search.fill('Bánh')
   await page.getByRole('button', { name: 'Tìm Kiếm' }).click()
   await expect(rows).toHaveCount(1)
   await expect(rows.first()).toContainText('Bánh trung thu')
-  await search.fill('')
-  await page.getByRole('button', { name: 'Tìm Kiếm' }).click()
+  await clearSearch.click()
+  await expect(search).toHaveValue('')
   await expect(rows).toHaveCount(3)
 
   await page.getByText('Bộ Lọc', { exact: true }).click()
@@ -549,6 +583,14 @@ test('Order search applies on Enter or the search button, and filters stage unti
   await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
   await expect(rows).toHaveCount(1)
   await expect(rows.first()).toContainText('Trà sen')
+  await search.fill('sen')
+  await page.getByRole('button', { name: 'Tìm Kiếm' }).click()
+  await expect(rows).toHaveCount(1)
+  await clearSearch.click()
+  await expect(search).toHaveValue('')
+  await expect(rows).toHaveCount(1)
+  await expect(rows.first()).toContainText('Trà sen')
+  await expect(clearSearch).toHaveCount(0)
   expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
   await expectNoHorizontalOverflow()
 })
@@ -641,8 +683,14 @@ test('Paid orders cannot be selected for a second payment and allocated order fi
   await page.getByRole('button', { name: 'Đơn Hàng' }).click()
   const paidRow = page.locator('.order-row').filter({ hasText: 'Paid' })
   const partialRow = page.locator('.order-row').filter({ hasText: 'Partial' })
+  await expect(paidRow).toHaveClass(/is-paid/)
   await expect(paidRow.getByRole('checkbox')).toHaveCount(0)
   await expect(partialRow.getByRole('checkbox')).toHaveCount(1)
+  const paidEdit = paidRow.getByRole('button', { name: 'Sửa Đơn' })
+  await expect(paidEdit).toBeDisabled()
+  await expect(paidEdit).toHaveAttribute('title', 'Đơn đã thanh toán không thể chỉnh sửa')
+  await expect(paidRow.getByRole('button', { name: 'Hủy Đơn' })).toHaveCount(0)
+  await expect(partialRow.getByRole('button', { name: 'Hủy Đơn' })).toHaveAttribute('title', /Shopee hủy\/hoàn/)
 
   await partialRow.getByRole('button', { name: 'Sửa Đơn' }).click()
   const dialog = page.getByRole('dialog', { name: 'Sửa Đơn Hàng' })
@@ -654,10 +702,10 @@ test('Paid orders cannot be selected for a second payment and allocated order fi
   expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
 })
 
-test('Admin cancels a paid order and records a refund adjustment', async ({ page }) => {
-  const order: MockOrder = { id: 'order-paid', description: 'Refunded order', placed_at: '2026-05-02', amount: 5000, status: 'paid', billing_cycle_id: mayCycle.id }
-  const payment = { id: 'payment-existing', paid_at: '2026-05-04', amount: 5000, note: null }
-  const allocation = { payment_id: payment.id, order_id: order.id, amount: 5000 }
+test('Admin cancels a partially paid shipping order and records a refund adjustment', async ({ page }) => {
+  const order: MockOrder = { id: 'order-partial-refund', description: 'Partially paid shipping order', placed_at: '2026-05-02', amount: 5000, status: 'unpaid', billing_cycle_id: mayCycle.id }
+  const payment = { id: 'payment-existing', paid_at: '2026-05-04', amount: 3000, note: null }
+  const allocation = { payment_id: payment.id, order_id: order.id, amount: 3000 }
   const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [mayCycle], payments: [payment], allocations: [allocation] })
   await signIn(page, 'admin')
   await page.getByRole('button', { name: 'Đơn Hàng' }).click()
@@ -665,18 +713,19 @@ test('Admin cancels a paid order and records a refund adjustment', async ({ page
   const dialogTypes: string[] = []
   const acceptDialogs = async (dialog: import('@playwright/test').Dialog) => {
     dialogTypes.push(dialog.type())
-    await dialog.accept(dialog.type() === 'prompt' ? '4500' : undefined)
+    await dialog.accept(dialog.type() === 'prompt' ? '2500' : undefined)
   }
   page.on('dialog', acceptDialogs)
-  await page.locator('.order-row').filter({ hasText: 'Refunded order' }).getByRole('button', { name: 'Hủy Đơn' }).click()
+  const row = page.locator('.order-row').filter({ hasText: 'Partially paid shipping order' })
+  await row.getByRole('button', { name: 'Hủy Đơn' }).click()
   await expect.poll(() => dialogTypes).toEqual(['confirm', 'prompt'])
   page.off('dialog', acceptDialogs)
 
-  await expect(page.locator('.order-row').filter({ hasText: 'Refunded order' }).getByText('Đã Hủy')).toBeVisible()
+  await expect(row.getByText('Đã Hủy')).toBeVisible()
   const cancelRequest = mock.requests.find((request) => request.path === '/rest/v1/rpc/cancel_order')
-  expect(cancelRequest?.body).toMatchObject({ p_order_id: order.id, p_refund_amount: 4500, p_note: 'Hoàn tiền đơn Refunded order' })
+  expect(cancelRequest?.body).toMatchObject({ p_order_id: order.id, p_refund_amount: 2500, p_note: 'Hoàn tiền đơn Partially paid shipping order' })
   expect(mock.ledgerEntries).toHaveLength(1)
-  expect(mock.ledgerEntries[0]).toMatchObject({ kind: 'refund', amount: 4500, billing_cycle_id: mayCycle.id })
+  expect(mock.ledgerEntries[0]).toMatchObject({ kind: 'refund', amount: 2500, billing_cycle_id: mayCycle.id })
 })
 
 test('Admin soft-deletes an unpaid order and restores its retained history', async ({ page }) => {

@@ -16,7 +16,7 @@ Protect `main` with pull requests, the passing `build-and-e2e` check, up-to-date
 
 ## 2026-11-21 — Browser testing
 
-Use Playwright for deterministic browser E2E smoke tests on desktop and mobile Chromium. Mock Supabase Auth and REST at the network boundary; do not add app-level auth bypasses or use production credentials in the suite. Playwright verifies rendered behavior and responsive layout, while actual RLS, email-link expiry, and deployed Auth configuration remain separate live QA checks.
+Use Playwright for deterministic browser E2E tests only on Chrome and Edge. Run desktop, mobile viewport emulation, and QR fallback projects in both supported browsers. Mock Supabase Auth and REST at the browser boundary; do not add app-level auth bypasses or use production credentials in mocked tests. Use a separate local authenticated API/RLS probe and keep hosted RLS, email-link expiry, and deployed Auth configuration as explicit release checks.
 
 ## 2026-11-21 — User provisioning
 
