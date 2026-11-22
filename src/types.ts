@@ -6,15 +6,19 @@ export type Profile = {
   email: string
   full_name: string
   role: Role
+  avatar_path?: string | null
 }
 
 export type Order = {
   id: string
   placed_at: string
   description: string
+  notes?: string | null
+  shopee_order_url: string | null
   amount: number
   status: OrderStatus
   billing_cycle_id: string | null
+  deleted_at: string | null
 }
 
 export type Payment = {
@@ -22,6 +26,14 @@ export type Payment = {
   paid_at: string
   amount: number
   note: string | null
+}
+
+export type PaymentSettings = {
+  singleton: boolean
+  note: string
+  qr_image_path: string | null
+  updated_at: string
+  updated_by: string | null
 }
 
 export type InstallmentPlan = {

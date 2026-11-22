@@ -7,7 +7,7 @@ The source workbook contains monthly sheets from `05.2026` to `11.2026` and a se
 3. Store the initial 5,000,000 VND as a signed opening credit ledger entry, not as an order. Carry-forward balances from the workbook seed the historic billing-cycle opening balances.
 4. Normalize ambiguous spreadsheet date cells as `dd/mm/yyyy`. The supplied workbook used mixed text dates and Excel dates parsed as `mm/dd/yyyy`; dates are interpreted in the Vietnamese billing-cycle context.
 5. Import S25U as a separate installment plan with its two dated payments.
-6. Generate the reviewed SQL locally with `python scripts/import_legacy.py "bé Lin thiếu nợ.xlsx" > supabase/local/import_legacy.sql`. The output directory is ignored by Git because it contains personal purchase history.
+6. Generate the reviewed UTF-8 SQL locally with `python scripts/import_legacy.py "bé Lin thiếu nợ.xlsx" --output supabase/local/import_legacy.sql`. Writing directly from Python avoids Windows shell encoding changes. The output directory is ignored by Git because it contains personal purchase history.
 7. The importer aborts unless final Shopee debt is 2,999,619 VND and S25U remaining is 18,000,000 VND. The reviewed totals are 14,936,951 VND of purchases, 6,937,332 VND paid, 5,000,000 VND opening credit, and 3,599,000 VND installment payments.
 8. Apply the schema upgrades and generated import once to Supabase. Run as the database owner through the Supabase CLI because app order-write guards require an authenticated Admin session. In one transaction, temporarily disable only `protect_closed_cycle_orders` for the legacy order insert, re-enable it before commit, then verify persisted cycle/order/payment/allocation/plan rows and balances before deleting or archiving the local source workbook.
 

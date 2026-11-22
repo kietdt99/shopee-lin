@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-and-e2e:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
@@ -25,8 +25,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm build
+      - run: pnpm exec playwright install chrome msedge
+      - run: pnpm test:bundle
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v6
         if: failure()
