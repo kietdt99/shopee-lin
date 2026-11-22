@@ -43,6 +43,8 @@ test.describe('mocked Orders client performance baseline', () => {
 
   for (const count of [60, 1_000]) {
     test(`${count} synthetic orders: render and submitted search`, async ({ browser, baseURL }, testInfo) => {
+      test.skip(testInfo.project.name.includes('mobile'), 'This baseline fixes the viewport at desktop 1280×800 and runs only on desktop Chrome/Edge projects.')
+
       const orders = makeOrders(count)
       const targetDescription = `Performance Search Target ${count} orders`
       const renderTimes: number[] = []
