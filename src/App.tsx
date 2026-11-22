@@ -141,9 +141,10 @@ export default function App() {
   const outstanding = useMemo(
     () => {
       const activeOrders = orders.filter((order) => order.status !== 'cancelled' && !order.deleted_at)
-      const activeOrderIds = new Set(activeOrders.map((order) => order.id))
-      const activeAllocations = allocations.filter((allocation) => activeOrderIds.has(allocation.order_id))
-      return Math.max(0, activeOrders.reduce((total, order) => total + order.amount, 0) - activeAllocations.reduce((total, allocation) => total + allocation.amount, 0) + ledgerEntries.reduce((total, entry) => total + entry.amount, 0))
+      // A cancelled order no longer contributes its purchase amount, but retained payment allocations remain credits.
+      const nonDeletedOrderIds = new Set(orders.filter((order) => !order.deleted_at).map((order) => order.id))
+      const retainedAllocations = allocations.filter((allocation) => nonDeletedOrderIds.has(allocation.order_id))
+      return Math.max(0, activeOrders.reduce((total, order) => total + order.amount, 0) - retainedAllocations.reduce((total, allocation) => total + allocation.amount, 0) + ledgerEntries.reduce((total, entry) => total + entry.amount, 0))
     },
     [orders, allocations, ledgerEntries],
   )
@@ -162,7 +163,7 @@ export default function App() {
     const [profileResult, accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult, paymentSettingsResult] = await Promise.all([
       client.from('profiles').select('id,email,full_name,role,avatar_path').eq('id', user.id).single(),
       client.from('profiles').select('id,email,full_name,role').order('role').order('full_name'),
-      client.from('orders').select('id,placed_at,description,shopee_order_url,amount,status,billing_cycle_id,deleted_at').order('placed_at', { ascending: false }),
+      client.from('orders').select('id,placed_at,description,notes,shopee_order_url,amount,status,billing_cycle_id,deleted_at').order('placed_at', { ascending: false }),
       client.from('payments').select('id,paid_at,amount,note').order('paid_at', { ascending: false }),
       client.from('installment_summary').select('id,name,total_amount,total_paid'),
       client.from('billing_cycles').select('*').order('starts_on', { ascending: false }),
