@@ -31,6 +31,25 @@ async function expectRequiredMarkerInline(labelTitle: Locator) {
   expect(metrics.centerOffset).toBeLessThanOrEqual(2)
 }
 
+async function orderDateLabelGap(dateCell: Locator) {
+  return dateCell.evaluate((cell) => {
+    const labelStyle = getComputedStyle(cell, '::before')
+    const label = labelStyle.content.replace(/^['"]|['"]$/g, '')
+    const textNode = Array.from(cell.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim())
+    if (!textNode) return Number.NEGATIVE_INFINITY
+
+    const range = document.createRange()
+    range.selectNodeContents(textNode)
+    const valueLeft = range.getBoundingClientRect().left
+    const cellLeft = cell.getBoundingClientRect().left
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    if (!context) return Number.NEGATIVE_INFINITY
+    context.font = `${labelStyle.fontWeight} ${labelStyle.fontSize} ${labelStyle.fontFamily}`
+    return valueLeft - cellLeft - context.measureText(label).width
+  })
+}
+
 async function applyAllOrderCycles(page: Page) {
   await page.locator('.cycle-filter-select > summary').click()
   await page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' }).check()
@@ -61,16 +80,16 @@ test('login screen fits desktop and mobile viewports', async ({ page, expectNoHo
   await expectNoHorizontalOverflow()
 })
 
-test('target desktop and Samsung mobile viewports use the expected content frame', async ({ page, expectNoHorizontalOverflow }) => {
+test('target desktop, laptop, and Samsung viewports use the expected content frame', async ({ page, expectNoHorizontalOverflow }) => {
   await mockSupabase(page, 'admin')
   await signIn(page, 'admin')
 
   const shell = page.locator('.app-shell')
   const targets = [
     { name: 'Desktop 2K 27-inch', width: 2560, height: 1440, expectedShellWidth: 2048 },
-    { name: 'Laptop 14-inch', width: 1920, height: 1080, expectedShellWidth: 1920 },
-    { name: 'Samsung S23 Ultra', width: 360, height: 780, expectedShellWidth: 360 },
-    { name: 'Samsung S25 Ultra', width: 384, height: 832, expectedShellWidth: 384 },
+    { name: 'Laptop 14-inch', width: 1366, height: 768, expectedShellWidth: 1366 },
+    { name: 'Samsung S23 Ultra CSS viewport', width: 384, height: 854, expectedShellWidth: 384 },
+    { name: 'Samsung S25 Ultra CSS viewport', width: 384, height: 854, expectedShellWidth: 384 },
   ]
 
   for (const target of targets) {
@@ -268,7 +287,7 @@ test('Viewer cannot open payment settings and sees only the QR image and saved n
   await signIn(page, 'viewer')
   await expect(page.getByRole('button', { name: 'Tài Khoản' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Thanh Toán', exact: true })).toHaveCount(0)
-  await expect(page).toHaveURL('http://127.0.0.1:4173/')
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
   await page.getByRole('button', { name: 'Thanh toán' }).click()
   const paymentDialog = page.getByRole('dialog', { name: 'Thanh toán' })
   await expect(paymentDialog).toBeVisible()
@@ -691,7 +710,7 @@ test('successful password setup removes the redirect marker from the URL', async
   await page.getByRole('button', { name: 'Lưu Mật Khẩu' }).click()
 
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
-  await expect(page).toHaveURL('http://127.0.0.1:4173/')
+  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
 })
 
 test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ page }) => {
@@ -758,6 +777,15 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
   await expect(mayRow.locator('td').nth(3)).toContainText('1.000')
   await expect(mayRow.locator('td').nth(4)).toContainText('05.2026')
 
+  const originalViewport = page.viewportSize()!
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: width === 320 ? 800 : 844 })
+    await waitForAnimationsToFinish(page)
+    expect(await orderDateLabelGap(mayRow.locator('td[data-label="Ngày"]')), `date label gap at ${width}px`).toBeGreaterThanOrEqual(2)
+    await expectNoHorizontalOverflow()
+  }
+  await page.setViewportSize(originalViewport)
+
   await page.getByRole('button', { name: 'Thêm Đơn Hàng' }).click()
   const createDialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
   await expect(createDialog.locator('.required-marker')).toHaveCount(3)
@@ -810,6 +838,144 @@ test('Orders table puts selection first, shows cycle after amount, and marks req
 
   expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
   await expectNoHorizontalOverflow()
+})
+
+test('reduced motion disables nonessential filter and dialog animations and transitions', async ({ page }) => {
+  await mockSupabase(page, 'admin', { cycles: [mayCycle] })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+  await applyAllOrderCycles(page)
+
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+  const cycleTrigger = page.locator('.cycle-filter-select > summary')
+  await cycleTrigger.click()
+  const filterMenu = page.locator('.cycle-filter-select .filter-select-menu')
+  await expect(filterMenu).toBeVisible()
+  const regularMotion = await filterMenu.evaluate((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+  }))
+  expect(parseFloat(regularMotion.animation)).toBeGreaterThan(0.01)
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const reducedMotion = await filterMenu.evaluate((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+  }))
+  expect(parseFloat(reducedMotion.animation)).toBeLessThanOrEqual(0.00002)
+  expect(parseFloat(reducedMotion.transition)).toBeLessThanOrEqual(0.00002)
+
+  await cycleTrigger.click()
+  await page.getByRole('button', { name: 'Thêm Đơn Hàng' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
+  await expect(dialog).toBeVisible()
+  const dialogMotion = await dialog.evaluate((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+  }))
+  expect(parseFloat(dialogMotion.animation)).toBeLessThanOrEqual(0.00002)
+  expect(parseFloat(dialogMotion.transition)).toBeLessThanOrEqual(0.00002)
+})
+
+test('filter and order dialog can be used immediately without waiting for motion completion', async ({ page }) => {
+  const order: MockOrder = { id: 'motion-order', description: 'Motion-safe order', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id }
+  await mockSupabase(page, 'admin', { cycles: [mayCycle], orders: [order] })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+
+  await page.locator('.cycle-filter-select > summary').click()
+  await expect(page.locator('.cycle-filter-select .filter-select-menu')).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' }).uncheck()
+  await page.getByLabel('05.2026 (21/04/2026 – 20/05/2026)').check()
+  await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
+  await expect(page.locator('.order-row')).toContainText('Motion-safe order')
+
+  await page.getByRole('button', { name: 'Thêm Đơn Hàng' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Mô Tả Đơn Hàng').fill('Created without waiting for motion')
+  await expect(dialog.getByLabel('Mô Tả Đơn Hàng')).toHaveValue('Created without waiting for motion')
+})
+
+test('cycle and status filter popovers stay clear of the toolbar and inside narrow viewports', async ({ page, expectNoHorizontalOverflow }) => {
+  await mockSupabase(page, 'admin', {
+    cycles: [mayCycle, juneCycle],
+    orders: [{ id: 'filter-geometry-order', description: 'Filter geometry order', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id }],
+  })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+
+  const toolbar = page.locator('.order-tools')
+  const heading = page.locator('.orders-page-heading')
+  const controls = [
+    page.locator('.cycle-filter-select > summary'),
+    page.locator('.status-filter-select > summary'),
+    page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }),
+    page.getByRole('button', { name: 'Thêm Đơn Hàng' }),
+  ]
+  const assertMenuGeometry = async (menu: Locator, width: number) => {
+    await expect(menu).toBeVisible()
+    await menu.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map((animation) => animation.finished.catch(() => undefined)))
+    })
+    const menuBounds = await menu.boundingBox()
+    const toolbarBounds = await toolbar.boundingBox()
+    const headingBounds = await heading.boundingBox()
+    expect(menuBounds, `${width}px: filter menu visible`).not.toBeNull()
+    expect(toolbarBounds, `${width}px: order toolbar visible`).not.toBeNull()
+    expect(headingBounds, `${width}px: page heading visible`).not.toBeNull()
+    const viewport = page.viewportSize()!
+    expect(menuBounds!.x, `${width}px: menu left edge stays on screen`).toBeGreaterThanOrEqual(0)
+    expect(menuBounds!.x + menuBounds!.width, `${width}px: menu right edge stays on screen`).toBeLessThanOrEqual(viewport.width)
+    expect(menuBounds!.y, `${width}px: menu begins below full toolbar`).toBeGreaterThanOrEqual(toolbarBounds!.y + toolbarBounds!.height)
+    expect(menuBounds!.y, `${width}px: menu does not cover the page heading`).toBeGreaterThanOrEqual(headingBounds!.y + headingBounds!.height)
+    expect(menuBounds!.y + menuBounds!.height, `${width}px: menu bottom stays on screen`).toBeLessThanOrEqual(viewport.height)
+
+    for (const control of controls) {
+      const bounds = await control.boundingBox()
+      expect(bounds, `${width}px: toolbar control remains visible`).not.toBeNull()
+      const overlaps = menuBounds!.x < bounds!.x + bounds!.width
+        && menuBounds!.x + menuBounds!.width > bounds!.x
+        && menuBounds!.y < bounds!.y + bounds!.height
+        && menuBounds!.y + menuBounds!.height > bounds!.y
+      expect(overlaps, `${width}px: popover does not overlap toolbar controls`).toBe(false)
+    }
+    await expectNoHorizontalOverflow()
+  }
+  const expectSameBounds = (before: NonNullable<Awaited<ReturnType<Locator['boundingBox']>>>, after: NonNullable<Awaited<ReturnType<Locator['boundingBox']>>>) => {
+    for (const key of ['x', 'y', 'width', 'height'] as const) expect(Math.abs(before[key] - after[key]), `trigger ${key} stays stable`).toBeLessThanOrEqual(1)
+  }
+
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: width === 320 ? 800 : 844 })
+    const cycleTrigger = controls[0]
+    const cycleBefore = await cycleTrigger.boundingBox()
+    expect(cycleBefore).not.toBeNull()
+    await cycleTrigger.click()
+    const cycleMenu = page.locator('.cycle-filter-select .filter-select-menu')
+    await assertMenuGeometry(cycleMenu, width)
+    await page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' }).check()
+    const cycleAfter = await cycleTrigger.boundingBox()
+    expect(cycleAfter).not.toBeNull()
+    expectSameBounds(cycleBefore!, cycleAfter!)
+    await assertMenuGeometry(cycleMenu, width)
+    await cycleTrigger.click()
+
+    const statusTrigger = controls[1]
+    const statusBefore = await statusTrigger.boundingBox()
+    expect(statusBefore).not.toBeNull()
+    await statusTrigger.click()
+    const statusMenu = page.locator('.status-filter-select .filter-select-menu')
+    await assertMenuGeometry(statusMenu, width)
+    await page.getByRole('checkbox', { name: 'Chọn Tất Cả Trạng Thái' }).uncheck()
+    await page.getByRole('checkbox', { name: 'Chưa Thanh Toán', exact: true }).check()
+    const statusAfter = await statusTrigger.boundingBox()
+    expect(statusAfter).not.toBeNull()
+    expectSameBounds(statusBefore!, statusAfter!)
+    await assertMenuGeometry(statusMenu, width)
+    await statusTrigger.click()
+  }
 })
 
 test('long order descriptions expand to use available desktop table width', async ({ page }) => {
