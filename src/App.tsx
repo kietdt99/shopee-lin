@@ -662,6 +662,34 @@ function shortenOrderDescription(description: string, maxLength = 88) {
   return characters.length > maxLength ? `${characters.slice(0, maxLength - 1).join('').trimEnd()}…` : text
 }
 
+function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
+  const menu = filter.querySelector<HTMLElement>('.filter-select-menu')
+  if (!menu) return
+  if (!filter.open || !window.matchMedia('(max-width: 600px)').matches) {
+    menu.removeAttribute('style')
+    return
+  }
+
+  const orderTools = filter.closest<HTMLElement>('.order-tools')
+  if (!orderTools) return
+  const orderToolsBounds = orderTools.getBoundingClientRect()
+  const viewportMargin = 12
+  const menuWidth = Math.min(340, window.innerWidth - viewportMargin * 2)
+  const menuLeft = Math.max(viewportMargin, (window.innerWidth - menuWidth) / 2)
+  const menuTop = Math.ceil(orderToolsBounds.bottom + 8)
+  const availableHeight = Math.max(0, window.innerHeight - menuTop - viewportMargin)
+  const menuMaxHeight = Math.min(360, window.innerHeight * 0.5, availableHeight)
+
+  menu.style.position = 'fixed'
+  menu.style.top = `${menuTop}px`
+  menu.style.right = 'auto'
+  menu.style.bottom = 'auto'
+  menu.style.left = `${menuLeft}px`
+  menu.style.width = `${menuWidth}px`
+  menu.style.maxHeight = `${menuMaxHeight}px`
+  menu.style.transformOrigin = 'top left'
+}
+
 function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
   const filterControlsRef = useRef<HTMLDivElement>(null)
   const searchFormRef = useRef<HTMLFormElement>(null)
@@ -840,11 +868,11 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         <button className="icon-button search-submit" type="submit" aria-label="Tìm Kiếm" title="Tìm Kiếm"><Search size={19} /></button>
       </form>
       <div className="order-filter-controls" ref={filterControlsRef} aria-label="Bộ Lọc Đơn Hàng">
-          <details className="filter-select cycle-filter-select" name="orders-filter-select">
+          <details className="filter-select cycle-filter-select" name="orders-filter-select" onToggle={(event) => positionOrdersFilterMenu(event.currentTarget)}>
             <summary aria-label={`Kỳ: ${cycleFilterSummary(pendingCycles, cycles)}`}><span className="filter-summary-label">Kỳ · {cycleFilterSummary(pendingCycles, cycles)}</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <div className="filter-select-menu"><fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><label className="filter-option cycle-filter-option filter-select-all"><input type="checkbox" aria-label="Chọn Tất Cả Kỳ" checked={allSelected(pendingCycles, cycles.map((cycle) => cycle.id))} onChange={(event) => setPendingCycles(event.target.checked ? null : [])} /><strong>Chọn Tất Cả</strong></label><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option cycle-filter-option" aria-label={cycleDisplay(cycle)} key={cycle.id}><input type="checkbox" checked={pendingCycles === null || pendingCycles.includes(cycle.id)} onChange={() => toggleFilterValue(pendingCycles, cycle.id, cycles.map((item) => item.id), setPendingCycles)} /><span className="cycle-filter-copy"><strong>{cycle.label}</strong><span>{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span></span></label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset></div>
           </details>
-          <details className="filter-select status-filter-select" name="orders-filter-select">
+          <details className="filter-select status-filter-select" name="orders-filter-select" onToggle={(event) => positionOrdersFilterMenu(event.currentTarget)}>
             <summary aria-label={`Trạng Thái: ${allSelected(pendingStatuses, availableStatuses) || pendingStatuses?.length === 0 ? 'Tất Cả' : `${pendingStatuses?.length} mục`}`}><span className="filter-summary-label">Trạng Thái · {allSelected(pendingStatuses, availableStatuses) || pendingStatuses?.length === 0 ? 'Tất Cả' : `${pendingStatuses?.length} mục`}</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <div className="filter-select-menu"><fieldset className="status-filter-fieldset"><legend>Trạng Thái</legend><label className="filter-option filter-select-all"><input type="checkbox" aria-label="Chọn Tất Cả Trạng Thái" checked={allSelected(pendingStatuses, availableStatuses)} onChange={(event) => setPendingStatuses(event.target.checked ? null : [])} /><strong>Chọn Tất Cả</strong></label>{Object.entries(statusLabels).filter(([value]) => statuses.has(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses === null || pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleFilterValue(pendingStatuses, value as OrderFilterStatus, availableStatuses, setPendingStatuses)} />{label}</label>)}</fieldset></div>
           </details>
