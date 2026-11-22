@@ -1007,7 +1007,8 @@ function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: stri
       const objectUrl = URL.createObjectURL(image)
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = 'ShopeeLin-QR-Thanh-Toan.png'
+      const extension = image.type === 'image/jpeg' ? 'jpg' : image.type === 'image/webp' ? 'webp' : 'png'
+      link.download = `ShopeeLin-QR-Thanh-Toan.${extension}`
       document.body.appendChild(link)
       link.click()
       link.remove()
