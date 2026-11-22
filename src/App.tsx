@@ -88,7 +88,11 @@ export default function App() {
   const [message, setMessage] = useState(() => new URLSearchParams(window.location.search).get('error_code') === 'otp_expired'
     ? 'Liên kết khôi phục đã hết hạn. Nhắn bé Kịt tạo liên kết mới nhé.'
     : '')
-  const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).get('set-password') === '1')
+  const [passwordSetup, setPasswordSetup] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const expiredAuthLink = searchParams.get('error_code') === 'otp_expired'
+    return searchParams.get('set-password') === '1' && !expiredAuthLink
+  })
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
