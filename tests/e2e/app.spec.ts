@@ -20,6 +20,11 @@ const mayCycle: MockCycle = { id: 'cycle-may-2026', label: '05.2026', starts_on:
 const juneCycle: MockCycle = { id: 'cycle-june-2026', label: '06.2026', starts_on: '2026-05-21', ends_on: '2026-06-20', opening_balance: 0, status: 'open' }
 const januaryCycle: MockCycle = { id: 'cycle-january-2027', label: '01.2027', starts_on: '2026-12-21', ends_on: '2027-01-20', opening_balance: 0, status: 'open' }
 
+function appRootUrl(page: Page) {
+  // Keep redirect assertions compatible with an isolated Playwright port.
+  return new URL('/', page.url()).href
+}
+
 async function expectRequiredMarkerInline(labelTitle: Locator) {
   const metrics = await labelTitle.evaluate((title) => {
     const copy = title.querySelector('.label-copy')!.getBoundingClientRect()
@@ -287,7 +292,7 @@ test('Viewer cannot open payment settings and sees only the QR image and saved n
   await signIn(page, 'viewer')
   await expect(page.getByRole('button', { name: 'Tài Khoản' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Thanh Toán', exact: true })).toHaveCount(0)
-  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
+  await expect(page).toHaveURL(appRootUrl(page))
   await page.getByRole('button', { name: 'Thanh toán' }).click()
   const paymentDialog = page.getByRole('dialog', { name: 'Thanh toán' })
   await expect(paymentDialog).toBeVisible()
@@ -710,7 +715,7 @@ test('successful password setup removes the redirect marker from the URL', async
   await page.getByRole('button', { name: 'Lưu Mật Khẩu' }).click()
 
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
-  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
+  await expect(page).toHaveURL(appRootUrl(page))
 })
 
 test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ page }) => {
