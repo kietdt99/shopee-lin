@@ -23,7 +23,7 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Orders and settlement payments are separate records.
 - One payment can settle many orders. Admin selects the applicable outstanding orders after money has arrived.
 - An order can be unpaid, partially paid, paid, cancelled/refunded, or soft-deleted.
-- Admin may soft-delete only an unpaid order with no payment allocations. Deleted orders remain stored and visible as history, are excluded from balances, and can be restored by Admin while their billing cycle is open. Paid or partially paid orders cannot be deleted; they follow the cancellation/refund flow.
+- Admin may soft-delete only an unpaid order with no payment allocations. Deleted orders remain stored and visible as history, are excluded from balances, and can be restored by Admin while their billing cycle is open. The Admin status filter always includes **Đã Xóa**, even if no deleted order currently exists. Paid or partially paid orders cannot be deleted; they follow the cancellation/refund flow.
 - Hard deletion is not available for application records. Reopened billing cycles retain prior closing snapshots as history.
 - Admin may optionally save the Shopee order URL. The Orders tab opens that link in a new tab; the View control is disabled if no valid Shopee order URL is saved.
 - Orders show the selection checkbox before the date and place the billing-cycle column after amount. Order description, placed date, and positive VND amount are required and marked with `*`; the Shopee URL is optional.

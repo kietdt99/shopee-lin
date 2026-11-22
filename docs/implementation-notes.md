@@ -87,3 +87,4 @@
 
 - Cycle labels in Overview, the Orders filter, and Reports include their 21st-to-20th date ranges. The Orders table keeps the compact ending-month label. Cycle choices use a single-column card list with the checkbox, label, and date range visually grouped.
 - Report cycle selector is constrained to the panel width to prevent long date-range labels from causing horizontal page overflow on 320px mobile screens.
+- The Admin Orders status filter always includes `Đã Xóa`, even when no deleted orders currently exist. The Viewer only sees statuses represented in their retained order history.

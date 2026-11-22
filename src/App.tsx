@@ -434,7 +434,8 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const selectedAmount = selectedOrders.reduce((total, order) => total + remainingFor(order), 0)
   const cycleLabels = new Map(cycles.map((cycle) => [cycle.id, cycle.label]))
   const statusLabels: Record<OrderFilterStatus, string> = { unpaid: 'Chưa Trả', partial: 'Trả Một Phần', paid: 'Đã Trả', cancelled: 'Đã Hủy', deleted: 'Đã Xóa' }
-  const statuses = [...new Set(orders.map(statusFor))]
+  const statuses = new Set<OrderFilterStatus>(orders.map(statusFor))
+  if (isAdmin) statuses.add('deleted')
   const matchingCycles = cycles.filter((cycle) => cycle.label.toLocaleLowerCase('vi').includes(cycleSearch.trim().toLocaleLowerCase('vi')))
   const filteredOrders = orders.filter((order) => {
     const matchesSearch = !appliedSearch || order.description.toLocaleLowerCase('vi').includes(appliedSearch.toLocaleLowerCase('vi'))
@@ -497,7 +498,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         <summary>Bộ Lọc<ChevronDown className="filter-chevron" size={16} aria-hidden="true" /></summary>
         <div className="order-filter-menu">
           <fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option cycle-filter-option" aria-label={cycleDisplay(cycle)} key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} /><span className="cycle-filter-copy"><strong>{cycle.label}</strong><span>{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span></span></label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset>
-          <fieldset><legend>Trạng Thái</legend>{Object.entries(statusLabels).filter(([value]) => statuses.includes(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleValue(pendingStatuses, value as OrderFilterStatus, setPendingStatuses)} />{label}</label>)}</fieldset>
+          <fieldset><legend>Trạng Thái</legend>{Object.entries(statusLabels).filter(([value]) => statuses.has(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleValue(pendingStatuses, value as OrderFilterStatus, setPendingStatuses)} />{label}</label>)}</fieldset>
           <button type="button" className="primary-button compact" onClick={applyFilters}>Áp Dụng Bộ Lọc</button>
         </div>
       </details>

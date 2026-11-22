@@ -126,3 +126,7 @@ Style “Kỳ Hiện Tại” as a neutral gray metric label and show the cycle 
 ## 2026-11-22 — Cycle range filter layout
 
 Render cycle filter options in a single-column scroll list. Put the checkbox at the left, cycle label on the first line, and a smaller date range on the second line so dates remain associated with the correct option on narrow screens.
+
+## 2026-11-22 — Admin deleted-order filter
+
+Always show the **Đã Xóa** status choice in the Admin order filter, including when there are currently no deleted orders. Viewer remains read-only and does not get this Admin-only filter choice unless retained deleted history is present in their order list.

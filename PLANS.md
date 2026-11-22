@@ -50,3 +50,5 @@
 - [x] Show date ranges consistently in Overview, Orders filtering, and Reports while keeping the Orders table cycle column compact.
 - [x] Simplify the cycle filter list into grouped single-column options for narrow and desktop layouts.
 - [x] Constrain the report cycle selector width to prevent mobile horizontal overflow with date-range labels.
+- [x] Keep `Đã Xóa` available as an Admin Orders filter status even when no deleted rows currently exist.
+- [ ] Confirm whether `Trả Một Phần` is intended as a supported payment allocation state or should be removed in favor of whole-order settlement only.
