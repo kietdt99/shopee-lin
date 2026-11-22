@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, EyeOff, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { billingCycleLabel, billingCycleRange } from './lib/billingCycle'
+import { summarizeOrderPaymentsByCycle, type OrderPaymentAllocation } from './lib/orderCycleSummary'
 import { orderFilterStatus, sortOrders, type OrderFilterStatus, type OrderSortDirection, type OrderSortKey } from './lib/orderSort'
 import { parseVndInput } from './lib/vnd'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
@@ -89,7 +90,7 @@ export default function App() {
   const [showPayCard, setShowPayCard] = useState(false)
   const [showDisplayName, setShowDisplayName] = useState(false)
   const [cycles, setCycles] = useState<any[]>([])
-  const [allocations, setAllocations] = useState<any[]>([])
+  const [allocations, setAllocations] = useState<OrderPaymentAllocation[]>([])
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([])
   const [closings, setClosings] = useState<any[]>([])
   const [reportCycle, setReportCycle] = useState('')
@@ -711,7 +712,7 @@ function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
   menu.style.transformOrigin = 'top left'
 }
 
-function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: OrderPaymentAllocation[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
   const filterControlsRef = useRef<HTMLDivElement>(null)
   const searchFormRef = useRef<HTMLFormElement>(null)
   const [pendingOrderAction, setPendingOrderAction] = useState<{ type: 'delete' | 'restore' | 'cancel'; order: Order } | null>(null)
@@ -785,6 +786,18 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
     const matchesStatus = !appliedStatuses?.length || appliedStatuses.includes(statusFor(order))
     return matchesSearch && matchesCycle && matchesStatus
   })
+  const cyclePaymentSummary = useMemo(
+    () => summarizeOrderPaymentsByCycle(orders, allocations, appliedCycles),
+    [orders, allocations, appliedCycles],
+  )
+  const selectedAppliedCycle = appliedCycles?.length === 1
+    ? cycles.find((cycle) => cycle.id === appliedCycles[0])
+    : undefined
+  const appliedCycleContext = !appliedCycles?.length
+    ? 'Tất cả kỳ'
+    : selectedAppliedCycle
+      ? cycleDisplay(selectedAppliedCycle)
+      : `${appliedCycles.length} kỳ đã chọn`
   const cycleStartById = new Map(cycles.map((cycle) => [cycle.id, cycle.starts_on]))
   const sortedOrders = sortOrders(filteredOrders, sortKey, sortDirection, cycleStartById)
   const searchSuggestions = useMemo(() => {
@@ -921,6 +934,23 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         </button>
       </div>
       {isAdmin && <button className="primary-button compact orders-add-button" onClick={() => setShowNew(true)}><Plus size={18} />Thêm Đơn Hàng</button>}
+    </section>
+    <section className="cycle-payment-summary" aria-label="Tổng thanh toán theo kỳ">
+      <div className="cycle-payment-summary-context">
+        <span>Tổng theo kỳ áp dụng</span>
+        <strong>{appliedCycleContext}</strong>
+        <small>Tính độc lập với nội dung tìm kiếm và trạng thái đang hiển thị.</small>
+      </div>
+      <div className="cycle-payment-summary-metrics">
+        <article className="cycle-payment-metric">
+          <span>Tổng Đã Thanh Toán</span>
+          <strong>{formatVnd(cyclePaymentSummary.paidAmount)}</strong>
+        </article>
+        <article className="cycle-payment-metric">
+          <span>Tổng Chưa Thanh Toán</span>
+          <strong>{formatVnd(cyclePaymentSummary.unpaidAmount)}</strong>
+        </article>
+      </div>
     </section>
     {isAdmin && selectedOrders.length > 0 && <section className="selection-bar"><span>Chọn {selectedOrders.length} Đơn · tổng {formatVnd(selectedAmount)}</span><button className="primary-button compact" disabled={busy} onClick={() => setShowPaymentConfirm(true)}><CheckCircle2 size={17} />Ghi Nhận Đã Thanh Toán</button></section>}
     <section className="list-card orders-list">

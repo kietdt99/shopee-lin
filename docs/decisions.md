@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-23 — Orders payment totals use applied cycle selection
+
+Show **Tổng Đã Thanh Toán** and **Tổng Chưa Thanh Toán** above the Orders list for every role. These figures follow only the applied billing-cycle filter, not staged filter selections, search text, or applied status filters. An empty applied cycle selection means all cycles; show the cycle context beside the figures, including the date range when exactly one cycle is selected.
+
+Calculate totals from active orders assigned to the selected order cycle(s). Exclude soft-deleted and cancelled orders and their allocations. **Tổng Đã Thanh Toán** is the sum of payment allocations attached to those active orders, including historical allocations on orders that still have an unpaid balance. **Tổng Chưa Thanh Toán** is the sum of `max(0, order amount - allocations)` for active orders whose status is unpaid. All calculations use whole-VND integers. These order-cycle totals are not grouped by payment receipt date and are independent of the current search/status result count.
+
 ## 2026-11-21 — Minimal payment flow
 
 The app shows a static TPBank VietQR card using the `compact` image template, which retains VietQR, NAPAS, and bank logos without repeating transfer details. Show the recipient name, bank, and account once below the QR, with the account grouped for readability. Bé Lin tells the Admin after transferring. The Admin confirms and allocates payment to orders manually. Bank APIs, transfer notifications, and receipt uploads are out of scope.
