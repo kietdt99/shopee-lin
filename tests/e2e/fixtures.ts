@@ -505,7 +505,7 @@ export async function signIn(page: Page, role: TestRole) {
     await shortcut.click()
   } else {
     await page.getByLabel('Email').fill(role === 'admin' ? 'admin@example.test' : 'viewer@example.test')
-    await page.getByLabel('Mật Khẩu').fill('test-password')
+    await page.getByRole('textbox', { name: 'Mật Khẩu' }).fill('test-password')
     await page.getByRole('button', { name: 'Đăng nhập' }).click()
   }
   await expect(page.getByRole('button', { name: 'ShopeeLin', exact: true })).toBeVisible()

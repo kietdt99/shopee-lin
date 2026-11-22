@@ -8,7 +8,7 @@ test('failed normal password login stays on login and preserves safe URL state',
   await page.goto(returnUrl)
 
   await page.getByLabel('Email').fill('admin@example.test')
-  await page.getByLabel('Mật Khẩu').fill('incorrect-test-password')
+  await page.getByRole('textbox', { name: 'Mật Khẩu' }).fill('incorrect-test-password')
   await page.getByRole('button', { name: 'Đăng nhập' }).click()
 
   await expect(page.getByText('Email hoặc mật khẩu chưa đúng.')).toBeVisible()
