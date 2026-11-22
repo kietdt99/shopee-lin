@@ -1041,7 +1041,7 @@ test('Admin confirms the exact full balance for multiple selected orders without
 test('Paid orders cannot be selected again; historical partial allocations stay unpaid and lock finance fields', async ({ page }) => {
   const paid: MockOrder = { id: 'order-paid-eligibility', description: 'Paid', placed_at: '2026-05-02', amount: 5000, status: 'paid', billing_cycle_id: mayCycle.id }
   // This allocation represents imported/historical data. The current payment flow never creates a partial order payment.
-  const historicalAllocationOrder: MockOrder = { id: 'order-historical-allocation', description: 'Historical allocation', placed_at: '2026-05-03', amount: 9000, status: 'unpaid', billing_cycle_id: mayCycle.id }
+  const historicalAllocationOrder: MockOrder = { id: 'order-historical-allocation', description: 'Historical allocation', notes: 'Preserve this order note', placed_at: '2026-05-03', amount: 9000, status: 'unpaid', billing_cycle_id: mayCycle.id }
   const mock = await mockSupabase(page, 'admin', {
     orders: [paid, historicalAllocationOrder], cycles: [mayCycle],
     payments: [{ id: 'payment-prior', paid_at: '2026-05-04', amount: 5000, note: null }],
@@ -1067,15 +1067,19 @@ test('Paid orders cannot be selected again; historical partial allocations stay 
   await dialog.getByLabel('Mô Tả Đơn Hàng').fill('Historical allocation description corrected')
   await dialog.getByRole('button', { name: 'Lưu Đơn Hàng' }).click()
   await expect(page.locator('.order-row').filter({ hasText: 'Historical allocation description corrected' })).toContainText('9.000 ₫')
+  const update = mock.requests.find((request) => request.path === '/rest/v1/rpc/update_order')
+  expect(update?.body.p_notes).toBe('Preserve this order note')
+  expect(mock.orders.find((order) => order.id === historicalAllocationOrder.id)?.notes).toBe('Preserve this order note')
   expect(mock.requests.some((request) => request.path === '/rest/v1/rpc/record_order_payment')).toBe(false)
 })
 
 test('Admin confirms a Shopee cancellation and records only the entered refund amount', async ({ page }) => {
   const order: MockOrder = { id: 'order-partial-refund', description: 'Partially paid shipping order', placed_at: '2026-05-02', amount: 5000, status: 'unpaid', billing_cycle_id: mayCycle.id }
+  const otherOrder: MockOrder = { id: 'order-unrelated-debt', description: 'Other unpaid order', placed_at: '2026-05-03', amount: 10000, status: 'unpaid', billing_cycle_id: mayCycle.id }
   // The prior allocation is imported history; the Admin is canceling an unpaid order Shopee stopped before completion.
   const payment = { id: 'payment-existing', paid_at: '2026-05-04', amount: 3000, note: null }
   const allocation = { payment_id: payment.id, order_id: order.id, amount: 3000 }
-  const mock = await mockSupabase(page, 'admin', { orders: [order], cycles: [mayCycle], payments: [payment], allocations: [allocation] })
+  const mock = await mockSupabase(page, 'admin', { orders: [order, otherOrder], cycles: [mayCycle], payments: [payment], allocations: [allocation] })
   await signIn(page, 'admin')
   await page.getByRole('button', { name: 'Đơn Hàng' }).click()
 
@@ -1092,6 +1096,10 @@ test('Admin confirms a Shopee cancellation and records only the entered refund a
   expect(cancelRequest?.body).toMatchObject({ p_order_id: order.id, p_refund_amount: 2500, p_note: 'Hoàn tiền đơn Partially paid shipping order' })
   expect(mock.ledgerEntries).toHaveLength(1)
   expect(mock.ledgerEntries[0]).toMatchObject({ kind: 'refund', amount: 2500, billing_cycle_id: mayCycle.id })
+
+  // The canceled purchase is excluded, while its retained 3,000 VND payment credit and 2,500 VND refund adjustment offset other debt.
+  await page.getByRole('button', { name: 'ShopeeLin', exact: true }).click()
+  await expect(page.getByText('Dư nợ Shopee hiện tại').locator('..').getByText('9.500 ₫')).toBeVisible()
 })
 
 test('Admin soft-deletes an unpaid order and restores its retained history', async ({ page }) => {
