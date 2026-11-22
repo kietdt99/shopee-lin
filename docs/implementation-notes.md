@@ -90,3 +90,4 @@
 - The Admin Orders status filter always includes `Đã Xóa`, even when no deleted orders currently exist. The Viewer only sees statuses represented in their retained order history.
 - Filter popovers disable accidental text selection; the cycle search input explicitly keeps text selection enabled for normal editing.
 - Clickable buttons, menu summaries, and filter-option labels disable browser text selection across the app. Editable search inputs explicitly opt back into text selection.
+- The Orders filter popover closes when a pointer lands outside it or when Escape is pressed; Escape returns focus to the filter summary.

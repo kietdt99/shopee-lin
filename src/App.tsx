@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, ChevronDown, CircleX, CreditCard, Eye, LogOut, Package, Plus, ReceiptText, RotateCcw, Search, Smartphone, Pencil, Trash2, Users } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
@@ -408,6 +408,7 @@ function orderDescriptionLines(description: string) {
 }
 
 function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+  const orderFilterRef = useRef<HTMLDetailsElement>(null)
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState<Order | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -419,6 +420,23 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   const [pendingStatuses, setPendingStatuses] = useState<OrderFilterStatus[]>([])
   const [appliedCycles, setAppliedCycles] = useState<string[]>([])
   const [appliedStatuses, setAppliedStatuses] = useState<OrderFilterStatus[]>([])
+  useEffect(() => {
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const filter = orderFilterRef.current
+      if (filter?.open && !filter.contains(event.target as Node)) filter.removeAttribute('open')
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !orderFilterRef.current?.open) return
+      orderFilterRef.current.removeAttribute('open')
+      orderFilterRef.current.querySelector('summary')?.focus()
+    }
+    document.addEventListener('pointerdown', closeOnOutsidePointer)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePointer)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
   const remainingFor = (order: Order) => order.amount - allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
   const allocatedFor = (order: Order) => allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
   const statusFor = (order: Order): OrderFilterStatus => {
@@ -494,7 +512,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         <input aria-label="Tìm Kiếm Đơn Hàng" placeholder="Tìm Kiếm Đơn Hàng" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
         <button className="icon-button search-submit" type="submit" aria-label="Tìm Kiếm" title="Tìm Kiếm"><Search size={19} /></button>
       </form>
-      <details className="order-filter">
+      <details className="order-filter" ref={orderFilterRef}>
         <summary>Bộ Lọc<ChevronDown className="filter-chevron" size={16} aria-hidden="true" /></summary>
         <div className="order-filter-menu">
           <fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option cycle-filter-option" aria-label={cycleDisplay(cycle)} key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} /><span className="cycle-filter-copy"><strong>{cycle.label}</strong><span>{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span></span></label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset>

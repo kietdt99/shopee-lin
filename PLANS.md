@@ -54,3 +54,4 @@
 - [ ] Confirm whether `Trả Một Phần` is intended as a supported payment allocation state or should be removed in favor of whole-order settlement only.
 - [x] Prevent accidental text highlighting when clicking the order filter while preserving text selection in its search field.
 - [x] Audit and prevent accidental text selection across clickable controls and filter options throughout the app; preserve input text selection.
+- [x] Close the Orders filter on outside click and Escape; restore focus to its trigger on Escape.
