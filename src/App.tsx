@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -312,7 +312,7 @@ export default function App() {
         </nav>
         <div className="sidebar-footer">
           <SidebarProfile profile={profile} onEdit={() => setShowDisplayName(true)} onSignOut={() => void signOut()} />
-          <span className="app-version">v0.1.0</span>
+          <span className="app-version">v0.1.2</span>
         </div>
       </aside>
 
@@ -365,7 +365,7 @@ function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmai
   if (localAccounts.length > 0) {
     return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.role === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.role}</strong><span>{account.displayName}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
   }
-  return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin</p><h1>Bé Lin</h1><p>Đăng nhập bằng email và mật khẩu.</p><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
+  return <main className="centered"><section className="auth-card"><h1 className="login-brand"><span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span></h1><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
 }
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
@@ -663,6 +663,40 @@ function shortenOrderDescription(description: string, maxLength = 88) {
   return characters.length > maxLength ? `${characters.slice(0, maxLength - 1).join('').trimEnd()}…` : text
 }
 
+function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
+  const menu = filter.querySelector<HTMLElement>('.filter-select-menu')
+  if (!menu) return
+  if (!filter.open || !window.matchMedia('(max-width: 600px)').matches) {
+    menu.removeAttribute('style')
+    return
+  }
+
+  const orderToolsBounds = filter.closest<HTMLElement>('.order-tools')?.getBoundingClientRect()
+  if (!orderToolsBounds) return
+  const viewportMargin = 12
+  const menuWidth = Math.min(340, window.innerWidth - viewportMargin * 2)
+  const menuLeft = Math.max(viewportMargin, (window.innerWidth - menuWidth) / 2)
+  const preferredHeight = Math.min(360, window.innerHeight * 0.5, menu.scrollHeight)
+  const belowTop = Math.ceil(orderToolsBounds.bottom + 8)
+  const belowHeight = Math.max(0, window.innerHeight - belowTop - viewportMargin)
+  const aboveHeight = Math.max(0, orderToolsBounds.top - 8 - viewportMargin)
+  const placeAbove = belowHeight < Math.min(preferredHeight, 160) && aboveHeight > belowHeight
+  const availableHeight = placeAbove ? aboveHeight : belowHeight
+  const menuTop = placeAbove
+    ? Math.max(viewportMargin, Math.floor(orderToolsBounds.top - Math.min(preferredHeight, availableHeight) - 8))
+    : belowTop
+  const menuMaxHeight = Math.max(120, Math.min(preferredHeight || 360, availableHeight || window.innerHeight - viewportMargin * 2))
+
+  menu.style.position = 'fixed'
+  menu.style.top = `${menuTop}px`
+  menu.style.right = 'auto'
+  menu.style.bottom = 'auto'
+  menu.style.left = `${menuLeft}px`
+  menu.style.width = `${menuWidth}px`
+  menu.style.maxHeight = `${menuMaxHeight}px`
+  menu.style.transformOrigin = 'top left'
+}
+
 function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
   const filterControlsRef = useRef<HTMLDivElement>(null)
   const searchFormRef = useRef<HTMLFormElement>(null)
@@ -703,11 +737,19 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
       openFilter.removeAttribute('open')
       openFilter.querySelector('summary')?.focus()
     }
+    const repositionOpenFilter = () => {
+      const openFilter = filterControlsRef.current?.querySelector<HTMLDetailsElement>('details[open]')
+      if (openFilter) positionOrdersFilterMenu(openFilter)
+    }
     document.addEventListener('pointerdown', closeOnOutsidePointer)
     document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', repositionOpenFilter)
+    document.addEventListener('scroll', repositionOpenFilter, true)
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer)
       document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', repositionOpenFilter)
+      document.removeEventListener('scroll', repositionOpenFilter, true)
     }
   }, [])
   const remainingFor = (order: Order) => order.amount - allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
@@ -841,11 +883,11 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
         <button className="icon-button search-submit" type="submit" aria-label="Tìm Kiếm" title="Tìm Kiếm"><Search size={19} /></button>
       </form>
       <div className="order-filter-controls" ref={filterControlsRef} aria-label="Bộ Lọc Đơn Hàng">
-          <details className="filter-select cycle-filter-select" name="orders-filter-select">
+          <details className="filter-select cycle-filter-select" name="orders-filter-select" onToggle={(event) => positionOrdersFilterMenu(event.currentTarget)}>
             <summary aria-label={`Kỳ: ${cycleFilterSummary(pendingCycles, cycles)}`}><span className="filter-summary-label">Kỳ · {cycleFilterSummary(pendingCycles, cycles)}</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <div className="filter-select-menu"><fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><label className="filter-option cycle-filter-option filter-select-all"><input type="checkbox" aria-label="Chọn Tất Cả Kỳ" checked={allSelected(pendingCycles, cycles.map((cycle) => cycle.id))} onChange={(event) => setPendingCycles(event.target.checked ? null : [])} /><strong>Chọn Tất Cả</strong></label><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option cycle-filter-option" aria-label={cycleDisplay(cycle)} key={cycle.id}><input type="checkbox" checked={pendingCycles === null || pendingCycles.includes(cycle.id)} onChange={() => toggleFilterValue(pendingCycles, cycle.id, cycles.map((item) => item.id), setPendingCycles)} /><span className="cycle-filter-copy"><strong>{cycle.label}</strong><span>{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span></span></label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset></div>
           </details>
-          <details className="filter-select status-filter-select" name="orders-filter-select">
+          <details className="filter-select status-filter-select" name="orders-filter-select" onToggle={(event) => positionOrdersFilterMenu(event.currentTarget)}>
             <summary aria-label={`Trạng Thái: ${allSelected(pendingStatuses, availableStatuses) || pendingStatuses?.length === 0 ? 'Tất Cả' : `${pendingStatuses?.length} mục`}`}><span className="filter-summary-label">Trạng Thái · {allSelected(pendingStatuses, availableStatuses) || pendingStatuses?.length === 0 ? 'Tất Cả' : `${pendingStatuses?.length} mục`}</span><ChevronDown size={15} aria-hidden="true" /></summary>
             <div className="filter-select-menu"><fieldset className="status-filter-fieldset"><legend>Trạng Thái</legend><label className="filter-option filter-select-all"><input type="checkbox" aria-label="Chọn Tất Cả Trạng Thái" checked={allSelected(pendingStatuses, availableStatuses)} onChange={(event) => setPendingStatuses(event.target.checked ? null : [])} /><strong>Chọn Tất Cả</strong></label>{Object.entries(statusLabels).filter(([value]) => statuses.has(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses === null || pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleFilterValue(pendingStatuses, value as OrderFilterStatus, availableStatuses, setPendingStatuses)} />{label}</label>)}</fieldset></div>
           </details>
@@ -993,9 +1035,38 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
 }
 
 function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: string; onClose: () => void }) {
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+
+  const downloadQr = async () => {
+    if (!imageUrl || downloading) return
+    setDownloading(true)
+    setDownloadError('')
+    try {
+      const response = await fetch(imageUrl)
+      if (!response.ok) throw new Error('QR download failed')
+      const image = await response.blob()
+      const objectUrl = URL.createObjectURL(image)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      const extension = image.type === 'image/jpeg' ? 'jpg' : image.type === 'image/webp' ? 'webp' : 'png'
+      link.download = `ShopeeLin-QR-Thanh-Toan.${extension}`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    } catch {
+      setDownloadError('Không thể tải ảnh QR. Bạn có thể mở ảnh riêng rồi chọn lưu, hoặc dùng thiết bị khác để quét.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return <Dialog title="Thanh toán" onClose={onClose}>
     <div className="payment-card">
       {imageUrl ? <img src={imageUrl} alt="Ảnh QR thanh toán" /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {imageUrl && <div className="payment-qr-actions"><button className="secondary-button" type="button" onClick={() => void downloadQr()} disabled={downloading}><Download size={17} aria-hidden="true" />{downloading ? 'Đang tải ảnh QR…' : 'Tải ảnh QR'}</button><p>Trên điện thoại, lưu ảnh rồi chọn ảnh đó trong mục quét QR của ứng dụng ngân hàng.</p></div>}
+      {downloadError && <p className="form-message" role="alert">{downloadError} <a href={imageUrl} target="_blank" rel="noopener noreferrer">Mở ảnh QR trong tab mới</a></p>}
       <p className="payment-note">{note}</p>
     </div>
   </Dialog>

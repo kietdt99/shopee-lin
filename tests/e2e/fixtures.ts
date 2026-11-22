@@ -230,7 +230,7 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       const parts = url.pathname.split('/').filter(Boolean)
       if (method === 'POST' && parts[3] === 'sign' && parts[4] === 'payment-qr') {
         const objectPath = decodeURIComponent(parts.slice(5).join('/'))
-        await route.fulfill({ status: 200, json: { signedURL: `/storage/v1/object/sign/payment-qr/${objectPath}?token=mock` } })
+        await route.fulfill({ status: 200, json: { signedURL: `/object/sign/payment-qr/${objectPath}?token=mock` } })
         return
       }
       if (method === 'GET' && parts[3] === 'sign' && parts[4] === 'payment-qr') {
@@ -255,7 +255,7 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
           await route.fulfill({ status: 404, json: { message: 'Object not found' } })
           return
         }
-        await route.fulfill({ status: 200, json: { signedURL: `/storage/v1/object/sign/profile-avatars/${objectPath}?token=mock` } })
+        await route.fulfill({ status: 200, json: { signedURL: `/object/sign/profile-avatars/${objectPath}?token=mock` } })
         return
       }
     }

@@ -4,6 +4,7 @@ import { defineConfig, devices } from '@playwright/test'
 // Parallel test invocations must use unique ports and output directories.
 const configuredPort = Number(process.env.PLAYWRIGHT_PORT_BASE) || 4173
 const qrFallbackPort = configuredPort + 1
+const qrNoImagePort = configuredPort + 2
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -116,6 +117,20 @@ export default defineConfig({
         VITE_PAYEE_NAME: '',
         VITE_PAYEE_ACCOUNT: '',
         VITE_PAYEE_BANK: 'TPB',
+      },
+    },
+    {
+      command: `pnpm exec vite --host 127.0.0.1 --port ${qrNoImagePort} --strictPort`,
+      url: `http://127.0.0.1:${qrNoImagePort}`,
+      reuseExistingServer: false,
+      timeout: 30_000,
+      env: {
+        VITE_SUPABASE_URL: 'http://127.0.0.1:54321',
+        VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_playwright_test_key',
+        VITE_LOCAL_LOGIN_SHORTCUTS: 'true',
+        VITE_LOCAL_ADMIN_EMAIL: 'tuankiet141199@gmail.com',
+        VITE_LOCAL_VIEWER_EMAIL: 'tuankiet141199+lin-test@gmail.com',
+        VITE_LOCAL_DEV_PASSWORD: 'Shopee-Lin-Local-Only-2026',
       },
     },
   ],
