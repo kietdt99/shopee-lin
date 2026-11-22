@@ -4,6 +4,7 @@ This checklist is the release QA plan for v0.1.0. It describes expected behavior
 
 ### Latest verification — 2026-11-22
 
+- 2026-11-22 full UX regression audit: expanded the suite to assert current-period range and neutral label, compact table cycle label, single-column filter option layout/range, Admin-only deleted filter availability, no-selection styling for interactive controls, text-selectable search, filter outside-click/Escape closure and focus restoration, and dialog backdrop semantics. `pnpm test:e2e` passed 104/104 in 36.8s across desktop, mobile 390/320px, target viewports, and QR fallback. `pnpm build` passed (1,629 modules). Automated Supabase remains mocked; live RLS/Auth/Storage gates are unchanged.
 - After the local login card identity change: `pnpm test:e2e` passed 77/77 (30.9s), including checks that Admin/Viewer role and display name are visible and both emails are absent from their cards.
 - `pnpm build` passed on the feature branch (1,628 modules).
 - After the final Vietnamese API/Storage error copy pass: `pnpm test:e2e` passed 77/77 on integrated local `main` (32.7s), covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
@@ -171,4 +172,3 @@ The local API check above is evidence for the named local operations only. Produ
 - No bank API, transfer webhook, receipt upload, or automatic payment verification exists in v0.1.0.
 - Browser/device coverage is manual; this plan does not specify automated cross-browser, accessibility, or load testing.
 - Admin-generated recovery is for provisioned Viewer accounts. First-time provisioning still uses the allowlisted email activation flow.
-- 2026-11-22 full UX regression audit: expanded the suite to assert current-period range and neutral label, compact table cycle label, single-column filter option layout/range, Admin-only deleted filter availability, no-selection styling for interactive controls, text-selectable search, filter outside-click/Escape closure and focus restoration, and dialog backdrop semantics. `pnpm test:e2e` passed 104/104 in 36.8s across desktop, mobile 390/320px, target viewports, and QR fallback. `pnpm build` passed (1,629 modules). Automated Supabase remains mocked; live RLS/Auth/Storage gates are unchanged.
