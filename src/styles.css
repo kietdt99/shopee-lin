@@ -258,6 +258,7 @@ select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; backgrou
   .orders-table td::before { content: attr(data-label); color: #716b67; font-size: .78rem; font-weight: 750; }
   .orders-table td.selection-cell { grid-column: 1; grid-row: 1; display: flex; align-items: center; justify-content: center; }
   .orders-table td[data-label="Ngày"] { grid-column: 2; grid-row: 1; display: block; }
+  .orders-table td[data-label="Ngày"]::before { margin-right: .35em; }
   .orders-table td[data-label="Đơn Hàng"], .orders-table td[data-label="Hành Động"] { grid-column: 1 / -1; }
   .orders-table td[data-label="Đơn Hàng"] { grid-template-columns: 1fr; }
   .orders-table td[data-label="Đơn Hàng"]::before { margin-bottom: 2px; }
