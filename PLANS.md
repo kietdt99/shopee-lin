@@ -47,3 +47,5 @@
 - [x] Show the account role beneath the sidebar display name and keep profile actions aligned without wrapping.
 
 - [x] Match the current-period label to the neutral metric-label style and remove the duplicate “Kỳ” from its value.
+- [x] Show date ranges consistently in Overview, Orders filtering, and Reports while keeping the Orders table cycle column compact.
+- [x] Simplify the cycle filter list into grouped single-column options for narrow and desktop layouts.

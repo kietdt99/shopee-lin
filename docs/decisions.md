@@ -121,4 +121,8 @@ Show the signed-in role centered beneath the display name in the sidebar profile
 
 ## 2026-11-22 — Current-period card label
 
-Style “Kỳ Hiện Tại” as a neutral gray metric label and show only the cycle month/year below it; the label already supplies the word “Kỳ”.
+Style “Kỳ Hiện Tại” as a neutral gray metric label and show the cycle label with its full 21st-to-20th date range beneath it; the label already supplies the word “Kỳ”. Include the range in the cycle filter and report selector, but keep the Orders table cycle column compact with only the month/year label.
+
+## 2026-11-22 — Cycle range filter layout
+
+Render cycle filter options in a single-column scroll list. Put the checkbox at the left, cycle label on the first line, and a smaller date range on the second line so dates remain associated with the correct option on narrow screens.

@@ -43,6 +43,7 @@ const cycleRange = (label: string) => {
   const iso = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
   return { starts_on: iso(start), ends_on: iso(end) }
 }
+const cycleDisplay = (cycle: { label: string; starts_on: string; ends_on: string }) => `${cycle.label} (${formatDate(cycle.starts_on)} – ${formatDate(cycle.ends_on)})`
 const parseVndInput = (value: string) => {
   const trimmed = value.trim()
   if (!/^(?:\d+|\d{1,3}(?:[.,]\d{3})+)$/.test(trimmed)) return null
@@ -376,10 +377,11 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function Overview({ outstanding, paid, plans, isAdmin, onPay }: { outstanding: number; paid: number; plans: InstallmentPlan[]; isAdmin: boolean; onPay: () => void }) {
   const installmentRemaining = plans.reduce((total, plan) => total + plan.total_amount - plan.total_paid, 0)
+  const currentCycle = { label: cycleLabel(today), ...cycleRange(cycleLabel(today)) }
   return <section className="content-stack">
     <section className="balance-card"><p>Dư nợ Shopee hiện tại</p><strong>{formatVnd(outstanding)}</strong><span>Cập nhật từ các đơn chưa thanh toán</span>{!isAdmin && <button className="light-button" onClick={onPay}><Smartphone size={18} />Thanh toán</button>}</section>
     <section className="metric-grid">{isAdmin && <article className="metric"><span>Tổng đã thanh toán</span><strong>{formatVnd(paid)}</strong></article>}<article className="metric"><span>Còn trả góp</span><strong>{formatVnd(installmentRemaining)}</strong></article></section>
-    <section className="section-card"><div className="section-heading"><div><p className="overview-cycle-label">Kỳ Hiện Tại</p><h2>{cycleLabel(today)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
+    <section className="section-card"><div className="section-heading"><div><p className="overview-cycle-label">Kỳ Hiện Tại</p><h2>{cycleDisplay(currentCycle)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
   </section>
 }
 
@@ -405,7 +407,7 @@ function orderDescriptionLines(description: string) {
   return reliable ? chunks : [flat]
 }
 
-function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
   const [showNew, setShowNew] = useState(false)
   const [editing, setEditing] = useState<Order | null>(null)
   const [selected, setSelected] = useState<string[]>([])
@@ -494,7 +496,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
       <details className="order-filter">
         <summary>Bộ Lọc<ChevronDown className="filter-chevron" size={16} aria-hidden="true" /></summary>
         <div className="order-filter-menu">
-          <fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option" key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} />{cycle.label}</label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset>
+          <fieldset className="cycle-filter-fieldset"><legend>Kỳ Sổ</legend><input className="cycle-filter-search" type="search" aria-label="Tìm Kỳ Sổ" placeholder="Tìm Kỳ Sổ (ví dụ: 11.2026)" value={cycleSearch} onChange={(event) => setCycleSearch(event.target.value)} /><div className="cycle-filter-list">{matchingCycles.map((cycle) => <label className="filter-option cycle-filter-option" aria-label={cycleDisplay(cycle)} key={cycle.id}><input type="checkbox" checked={pendingCycles.includes(cycle.id)} onChange={() => toggleValue(pendingCycles, cycle.id, setPendingCycles)} /><span className="cycle-filter-copy"><strong>{cycle.label}</strong><span>{formatDate(cycle.starts_on)} – {formatDate(cycle.ends_on)}</span></span></label>)}</div>{matchingCycles.length === 0 && <p className="cycle-filter-empty">Không Tìm Thấy Kỳ Sổ.</p>}</fieldset>
           <fieldset><legend>Trạng Thái</legend>{Object.entries(statusLabels).filter(([value]) => statuses.includes(value as OrderFilterStatus)).map(([value, label]) => <label className="filter-option" key={value}><input type="checkbox" checked={pendingStatuses.includes(value as OrderFilterStatus)} onChange={() => toggleValue(pendingStatuses, value as OrderFilterStatus, setPendingStatuses)} />{label}</label>)}</fieldset>
           <button type="button" className="primary-button compact" onClick={applyFilters}>Áp Dụng Bộ Lọc</button>
         </div>
@@ -608,7 +610,7 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
   }
   const pdf=()=>window.print()
   const toggleClose=async()=>{if(!supabase||!cycle)return;const {error}=await supabase.rpc(cycle.status==='closed'?'reopen_billing_cycle':'close_billing_cycle',{p_cycle_id:cycle.id});if(error)window.alert('Không thể khóa hoặc mở khóa kỳ sổ. Hãy kiểm tra trạng thái kỳ rồi thử lại.');else await onUpdated()}
-  return <section className="content-stack report-panel"><div className="page-heading"><div><p className="eyebrow">Đối soát</p><h2>Báo cáo kỳ</h2></div><div className="report-actions"><button className="secondary-button" onClick={exportCsv}>Xuất Excel</button><button className="secondary-button" onClick={pdf}>Lưu PDF</button></div></div>{cycles.length===0?<section className="list-card empty-state">Chưa có kỳ sổ nào.</section>:<><label>Kỳ sổ<select value={cycle?.id??''} onChange={e=>onSelect(e.target.value)}>{cycles.map(c=><option key={c.id} value={c.id}>{c.label} · {c.status==='closed'?'Đã khóa':'Đang mở'}</option>)}</select></label><section className="metric-grid"><article className="metric"><span>Dư đầu kỳ</span><strong>{formatVnd(opening)}</strong></article><article className="metric"><span>Đơn phát sinh</span><strong>{formatVnd(purchases)}</strong></article><article className="metric"><span>Đã trả trong kỳ</span><strong>{formatVnd(paid)}</strong></article><article className="metric"><span>Còn lại theo kỳ</span><strong>{formatVnd(ending)}</strong></article></section><section className="list-card report-orders">{cycleOrders.length?cycleOrders.map(o=><div className={`report-line ${o.deleted_at?'is-deleted':''}`} key={o.id}><span>{formatDate(o.placed_at)} · {o.description}{o.deleted_at?' · Đã Xóa':''}</span><strong>{formatVnd(o.amount)}</strong></div>):<p className="empty-state">Kỳ này chưa có đơn hàng.</p>}{isAdmin&&<button className="primary-button compact" onClick={()=>void toggleClose()}>{cycle.status==='closed'?'Mở khóa kỳ':'Khóa sổ kỳ này'}</button>}{cycle.status==='closed'&&<p className="hint">Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.</p>}</section></>}</section>
+  return <section className="content-stack report-panel"><div className="page-heading"><div><p className="eyebrow">Đối soát</p><h2>Báo cáo kỳ</h2></div><div className="report-actions"><button className="secondary-button" onClick={exportCsv}>Xuất Excel</button><button className="secondary-button" onClick={pdf}>Lưu PDF</button></div></div>{cycles.length===0?<section className="list-card empty-state">Chưa có kỳ sổ nào.</section>:<><label>Kỳ sổ<select value={cycle?.id??''} onChange={e=>onSelect(e.target.value)}>{cycles.map(c=><option key={c.id} value={c.id}>{cycleDisplay(c)} · {c.status==='closed'?'Đã khóa':'Đang mở'}</option>)}</select></label><section className="metric-grid"><article className="metric"><span>Dư đầu kỳ</span><strong>{formatVnd(opening)}</strong></article><article className="metric"><span>Đơn phát sinh</span><strong>{formatVnd(purchases)}</strong></article><article className="metric"><span>Đã trả trong kỳ</span><strong>{formatVnd(paid)}</strong></article><article className="metric"><span>Còn lại theo kỳ</span><strong>{formatVnd(ending)}</strong></article></section><section className="list-card report-orders">{cycleOrders.length?cycleOrders.map(o=><div className={`report-line ${o.deleted_at?'is-deleted':''}`} key={o.id}><span>{formatDate(o.placed_at)} · {o.description}{o.deleted_at?' · Đã Xóa':''}</span><strong>{formatVnd(o.amount)}</strong></div>):<p className="empty-state">Kỳ này chưa có đơn hàng.</p>}{isAdmin&&<button className="primary-button compact" onClick={()=>void toggleClose()}>{cycle.status==='closed'?'Mở khóa kỳ':'Khóa sổ kỳ này'}</button>}{cycle.status==='closed'&&<p className="hint">Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.</p>}</section></>}</section>
 }
 
 function PaymentCard({ onClose }: { onClose: () => void }) {
