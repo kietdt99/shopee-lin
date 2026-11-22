@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, EyeOff, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -361,11 +361,63 @@ function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
 }
 
-function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { role: string; displayName: string; email: string }[]; onLoginAsLocal: (account: { role: string; displayName: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
+type LoginProps = {
+  email: string
+  password: string
+  message: string
+  localAccounts: { role: string; displayName: string; email: string }[]
+  onLoginAsLocal: (account: { role: string; displayName: string; email: string }) => void
+  onEmailChange: (value: string) => void
+  onPasswordChange: (value: string) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onSetup: () => void
+  onReset: () => void
+}
+
+function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: LoginProps) {
+  const [showPassword, setShowPassword] = useState(false)
+
   if (localAccounts.length > 0) {
     return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.role === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.role}</strong><span>{account.displayName}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
   }
-  return <main className="centered"><section className="auth-card"><h1 className="login-brand"><span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span></h1><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
+
+  return (
+    <main className="centered">
+      <section className="auth-card">
+        <h1 className="login-brand">
+          <span className="brand-mark" aria-hidden="true">S</span>
+          <span>ShopeeLin</span>
+        </h1>
+        <form onSubmit={onSubmit}>
+          <div className="auth-field">
+            <label htmlFor="login-email">Email</label>
+            <input id="login-email" required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" />
+          </div>
+          <div className="auth-field">
+            <label htmlFor="login-password">Mật Khẩu</label>
+            <div className="auth-password-input">
+              <input id="login-password" required type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
+              <button
+                className="password-visibility-toggle"
+                type="button"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
+          <button className="primary-button" type="submit">Đăng nhập</button>
+        </form>
+        <div className="auth-links">
+          <button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button>
+          <button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button>
+        </div>
+        {message && <p className="form-message">{message}</p>}
+      </section>
+    </main>
+  )
 }
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {

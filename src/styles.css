@@ -11,6 +11,12 @@ summary, .filter-option { -webkit-user-select: none; user-select: none; }
 .auth-card .login-brand { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-size: 1.4rem; font-weight: 850; letter-spacing: -.04em; }
 .auth-card h1, h2, p { margin-top: 0; }
 .auth-card form { display: grid; gap: 16px; margin-top: 24px; }
+.auth-field { display: grid; gap: 7px; }
+.auth-password-input { position: relative; min-width: 0; }
+.auth-password-input input { padding-right: 48px; }
+.password-visibility-toggle { position: absolute; top: 3px; right: 3px; display: grid; width: 40px; height: 40px; place-items: center; border: 0; border-radius: 8px; color: #716b67; background: transparent; }
+.password-visibility-toggle:hover { color: #b83218; background: #fff2ed; }
+.password-visibility-toggle:focus-visible { outline: 2px solid #ee4d2d; outline-offset: -2px; }
 .eyebrow { margin-bottom: 6px; color: var(--shopee-orange-action-hover); font-size: .78rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
 label { display: grid; gap: 7px; font-weight: 650; font-size: .92rem; }
 input:not([type="checkbox"]) { width: 100%; border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; outline-color: var(--shopee-orange); }
