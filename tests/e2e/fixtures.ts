@@ -150,7 +150,13 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
           ? currentProfiles.find((profile) => profile.id === url.searchParams.get('id')?.replace('eq.', '')) ?? null
           : currentProfiles
       } else if (table === 'orders') {
-        if (method === 'GET') data = [...state.orders].sort((a, b) => b.placed_at.localeCompare(a.placed_at))
+        if (method === 'GET') {
+          const selectedColumns = url.searchParams.get('select')?.split(',')
+          const sortedOrders = [...state.orders].sort((a, b) => b.placed_at.localeCompare(a.placed_at))
+          data = selectedColumns
+            ? sortedOrders.map((order) => Object.fromEntries(selectedColumns.filter((column) => column in order).map((column) => [column, order[column as keyof MockOrder]])))
+            : sortedOrders
+        }
         if (method === 'POST') {
           const order = { id: newId(), status: 'unpaid', ...body } as MockOrder
           state.orders.push(order)
@@ -324,7 +330,7 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order cannot be updated' } })
         return
       }
-      Object.assign(order, { description: body.p_description, shopee_order_url: body.p_shopee_order_url, amount: body.p_amount, placed_at: body.p_placed_at, billing_cycle_id: body.p_billing_cycle_id })
+      Object.assign(order, { description: body.p_description, notes: body.p_notes, shopee_order_url: body.p_shopee_order_url, amount: body.p_amount, placed_at: body.p_placed_at, billing_cycle_id: body.p_billing_cycle_id })
       await route.fulfill({ status: 204 })
       return
     }
