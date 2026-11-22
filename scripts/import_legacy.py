@@ -1,7 +1,10 @@
 """Generate idempotent SQL for the one-time Shopee Lin workbook migration."""
 import sys
 import uuid
+import io
+from contextlib import redirect_stdout
 from datetime import date, datetime
+from pathlib import Path
 
 import openpyxl
 
@@ -41,10 +44,30 @@ def stable_id(kind, *parts):
     return str(uuid.uuid5(NAMESPACE, "|".join([kind, *map(str, parts)])))
 
 
-def main():
-    if len(sys.argv) != 2:
-        raise SystemExit("Usage: python scripts/import_legacy.py <workbook.xlsx>")
-    workbook = openpyxl.load_workbook(sys.argv[1], data_only=True)
+def normalize_description(value):
+    """Normalize line contents while preserving blank lines between item blocks."""
+    lines = []
+    for line in str(value).replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        normalized = " ".join(line.split())
+        if normalized:
+            lines.append(normalized)
+        elif lines and lines[-1] != "":
+            # Keep one empty line, so item blocks remain separated by `\n\n`.
+            lines.append("")
+    while lines and not lines[0]:
+        lines.pop(0)
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
+
+
+def canonical_description(value):
+    """Use whitespace-insensitive text for ordering and stable order IDs."""
+    return " ".join(str(value).split())
+
+
+def generate_sql(workbook_path):
+    workbook = openpyxl.load_workbook(workbook_path, data_only=True)
     orders, payments = [], []
     for sheet in workbook.worksheets:
         if sheet.title == "Góp S25U":
@@ -58,7 +81,7 @@ def main():
             if not isinstance(seq, (int, float)) or not isinstance(amount, (int, float)) or not desc:
                 continue
             when = parse_date(None if is_may else sheet.cell(row, 2).value, sheet.title, is_may)
-            record = {"date": when, "description": " ".join(str(desc).split()), "amount": abs(int(amount)), "source": sheet.title}
+            record = {"date": when, "description": normalize_description(desc), "amount": abs(int(amount)), "source": sheet.title}
             (orders if amount < 0 else payments).append(record)
 
     # Opening credit is a ledger item, not a fake purchase. It offsets the old
@@ -67,7 +90,9 @@ def main():
     adjustments = []
 
     payments.sort(key=lambda p: (p["date"], p["description"]))
-    orders.sort(key=lambda o: (o["date"], o["source"], o["description"]))
+    # Keep historical row ordering stable even though descriptions now preserve
+    # the Excel line breaks used to separate products.
+    orders.sort(key=lambda o: (o["date"], o["source"], canonical_description(o["description"])))
     total_orders = sum(o["amount"] for o in orders)
     total_paid = sum(p["amount"] for p in payments)
     # Excel opening carry at the start of 11.2026 is zero. The current period's
@@ -108,7 +133,7 @@ def main():
     print("insert into public.orders (id,billing_cycle_id,placed_at,description,amount,status) select v.id::uuid,c.id,v.placed_at::date,v.description,v.amount,'unpaid'::public.order_status from (values")
     order_rows = []
     for index, order in enumerate(all_orders):
-        oid = stable_id("order", index, order["date"], order["description"], order["amount"])
+        oid = stable_id("order", index, order["date"], canonical_description(order["description"]), order["amount"])
         order_ids[index] = oid
         label = order["source"] if order["source"] == "05.2026" else cycle_for(order["date"])
         order_rows.append(f"  ('{oid}',{q(label)},'{order['date']}',{q(order['description'])},{order['amount']})")
@@ -167,6 +192,28 @@ def main():
         print(f"insert into public.installment_payments (id,plan_id,paid_at,amount,note) values ('{iid}','{plan_id}','{paid_at}',{amount},'Lần góp lịch sử') on conflict (id) do nothing;")
     print("commit;")
     print(f"-- Reconciled: {len(orders)} purchases={total_orders:,}; payments={total_paid:,}; opening credit={opening['amount']:,}; debt={EXPECTED_DEBT:,}; S25U={installment_total:,}, paid={installment_paid:,}, remaining={installment_remaining:,}")
+
+
+def main():
+    args = sys.argv[1:]
+    output_path = None
+    if len(args) == 1:
+        workbook_path = args[0]
+    elif len(args) == 3 and args[1] == "--output":
+        workbook_path, output_path = args[0], args[2]
+    else:
+        raise SystemExit("Usage: python scripts/import_legacy.py <workbook.xlsx> [--output <sql-file>]")
+
+    if output_path:
+        generated = io.StringIO()
+        with redirect_stdout(generated):
+            generate_sql(workbook_path)
+        target = Path(output_path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(generated.getvalue(), encoding="utf-8", newline="\n")
+        print(f"Generated UTF-8 SQL at {target}")
+    else:
+        generate_sql(workbook_path)
 
 
 if __name__ == "__main__":

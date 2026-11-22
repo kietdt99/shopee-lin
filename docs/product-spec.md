@@ -12,15 +12,25 @@ The supplied Excel workbook is historical data for a one-time migration only. Af
 - Viewer: Bé Lin. Can only view balances, reports, installments, and payment details.
 - Viewer test: A separate Gmail plus-alias account that delivers to the Admin inbox.
 - Default display names: Admin — Bé Kịt Thần Kỳ; Viewer test — Tester Quèn; Bé Lin — Bé Lin Tốc Độ Cao. Each user can edit their own display name in the app.
+- Hồ Sơ lets a user update their display name and avatar. Email is read-only for every role and visually marked as such. Display name is required and marked with `*`. Avatars are private, user-owned JPEG/PNG/WebP files up to 2 MB; old avatar objects are retained.
 - Admin can generate a single-use recovery link for a provisioned Viewer without sending email; the Viewer chooses a new password from the link. Its five-minute expiry requires the project-wide Email OTP expiry to be configured to 300 seconds.
+- Local test-account shortcuts show only the role and default display name; the email remains an internal sign-in identifier.
+- The authenticated shell uses a visually distinct left navigation panel on desktop. The profile card at the bottom shows each signed-in user's display name, role, and avatar; the role is centered below the name in smaller gray text, and users without an uploaded avatar see the shared default avatar. Profile actions sit below the avatar, followed by a left-aligned small `v0.1.0` label. Mobile retains compact horizontal navigation. Billing-cycle labels in the Overview, cycle filter, and report cycle selector include the date range (for example, `12.2026 (21/11/2026 – 20/12/2026)`). Keep the Orders table cycle column compact and show only the ending-month label. The current-period card uses a neutral gray “Kỳ Hiện Tại” label and does not repeat the signed-in role.
 
 ## Core rules
 
 - A billing cycle normally runs from the 21st of one month to the 20th of the next month.
 - Orders and settlement payments are separate records.
 - One payment can settle many orders. Admin selects the applicable outstanding orders after money has arrived.
-- An order can be unpaid, paid, or cancelled/refunded.
+- An order can be unpaid, partially paid, paid, cancelled/refunded, or soft-deleted.
+- Admin may soft-delete only an unpaid order with no payment allocations. Deleted orders remain stored and visible as history, are excluded from balances, and can be restored by Admin while their billing cycle is open. The Admin status filter always includes **Đã Xóa**, even if no deleted order currently exists. Paid or partially paid orders cannot be deleted; they follow the cancellation/refund flow.
+- Hard deletion is not available for application records. Reopened billing cycles retain prior closing snapshots as history.
+- Admin may optionally save the Shopee order URL. The Orders tab opens that link in a new tab; the View control is disabled if no valid Shopee order URL is saved.
+- Orders show the selection checkbox before the date and place the billing-cycle column after amount. Order description, placed date, and positive VND amount are required and marked with `*`; the Shopee URL is optional.
+- The Orders cycle filter uses a searchable, height-limited, single-column list so each cycle is easy to scan and older cycles remain accessible without making the filter panel grow indefinitely. Each option shows the cycle label above its date range beside a left-aligned checkbox; selections apply only after **Áp Dụng Bộ Lọc**.
 - S25 Ultra installments remain separate from ordinary Shopee debt.
+- An installment contribution must be a positive whole-VND amount no greater than the plan's remaining balance. Orders with existing payment allocations cannot change amount, placed date, or billing cycle; descriptive text and Shopee URL may still be corrected.
+- Reopening an earlier billing cycle is rejected while any later cycle remains closed, preventing retained reports from becoming stale. Admin reopens closed cycles from newest to oldest before editing earlier history.
 - The viewer sees a static TPBank VietQR payment card and this highlighted text: "Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé."
 - There is no bank API integration, receipt upload, or automatic payment verification in v0.1.0.
 

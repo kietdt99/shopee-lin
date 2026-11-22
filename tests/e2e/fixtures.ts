@@ -8,6 +8,10 @@ export type MockOrder = {
   amount: number
   status: 'unpaid' | 'paid' | 'cancelled'
   billing_cycle_id: string | null
+  shopee_order_url?: string | null
+  deleted_at?: string | null
+  deleted_by?: string | null
+  notes?: string | null
 }
 
 export type MockCycle = {
@@ -77,13 +81,16 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
     user,
   }
   const state = {
-    profiles: profiles.map((profile) => ({ ...profile })),
+    profiles: profiles.map((profile) => ({ ...profile, avatar_path: null as string | null })),
     orders: [...(seed.orders ?? [])],
     cycles: [...(seed.cycles ?? [])],
     payments: [...(seed.payments ?? [])],
     allocations: [...(seed.allocations ?? [])],
     closings: [...(seed.closings ?? [])],
     ledgerEntries: [...(seed.ledgerEntries ?? [])],
+    installmentSummary: [...(seed.installmentSummary ?? [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 2_000_000 }])],
+    installmentPayments: [...(seed.installmentPayments ?? [])],
+    storageObjects: new Set<string>(),
     requests: [] as { method: string; path: string; query: string; body: any }[],
   }
   let nextId = 1
@@ -93,7 +100,10 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
     const request = route.request()
     const url = new URL(request.url())
     const method = request.method()
-    const body = request.postData() ? request.postDataJSON() : null
+    let body: any = null
+    if (request.postData()) {
+      try { body = request.postDataJSON() } catch { body = null }
+    }
     if (url.pathname.startsWith('/auth/v1/') || url.pathname.startsWith('/rest/v1/') || url.pathname.startsWith('/functions/v1/')) {
       state.requests.push({ method, path: url.pathname, query: url.search, body })
     }
@@ -138,12 +148,6 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
           await route.fulfill({ status: 201 })
           return
         }
-        if (method === 'PATCH') {
-          const id = url.searchParams.get('id')?.replace('eq.', '')
-          state.orders = state.orders.map((order) => order.id === id ? { ...order, ...body } : order)
-          await route.fulfill({ status: 204 })
-          return
-        }
         if (method === 'DELETE') {
           const id = url.searchParams.get('id')?.replace('eq.', '')
           state.orders = state.orders.filter((order) => order.id !== id)
@@ -166,9 +170,9 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
           return
         }
       } else if (table === 'installment_summary') {
-        data = seed.installmentSummary ?? [{ id: 's25-ultra', name: 'S25 Ultra', total_amount: 20_000_000, total_paid: 2_000_000 }]
+        data = state.installmentSummary
       } else if (table === 'installment_payments') {
-        data = seed.installmentPayments ?? []
+        data = state.installmentPayments
       } else if (table === 'payments') {
         data = [...state.payments]
       } else if (table === 'payment_allocations') {
@@ -179,6 +183,20 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         data = [...state.closings]
       }
 
+      if (method === 'POST' && table === 'installment_plans') {
+        const plan = { id: newId(), name: body.name, total_amount: body.total_amount, total_paid: 0 }
+        state.installmentSummary.push(plan)
+        await route.fulfill({ status: 201 })
+        return
+      }
+      if (method === 'POST' && table === 'installment_payments') {
+        const payment = { id: newId(), ...body }
+        state.installmentPayments.push(payment)
+        const plan = state.installmentSummary.find((item) => item.id === body.plan_id)
+        if (plan) plan.total_paid += body.amount
+        await route.fulfill({ status: 201 })
+        return
+      }
       if (method !== 'GET' && !['orders'].includes(table ?? '')) {
         await route.fulfill({ status: 204 })
         return
@@ -191,11 +209,30 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       return
     }
 
+    if (url.pathname.startsWith('/storage/v1/object/')) {
+      const parts = url.pathname.split('/').filter(Boolean)
+      if (method === 'POST' && parts[3] === 'profile-avatars') {
+        const objectPath = decodeURIComponent(parts.slice(4).join('/'))
+        state.storageObjects.add(objectPath)
+        await route.fulfill({ status: 200, json: { Key: `profile-avatars/${objectPath}` } })
+        return
+      }
+      if (method === 'POST' && parts[3] === 'sign' && parts[4] === 'profile-avatars') {
+        const objectPath = decodeURIComponent(parts.slice(5).join('/'))
+        if (!state.storageObjects.has(objectPath)) {
+          await route.fulfill({ status: 404, json: { message: 'Object not found' } })
+          return
+        }
+        await route.fulfill({ status: 200, json: { signedURL: `/storage/v1/object/sign/profile-avatars/${objectPath}?token=mock` } })
+        return
+      }
+    }
+
     if (url.pathname === '/rest/v1/rpc/record_order_payment' && method === 'POST') {
       const paymentId = newId()
       let remaining = Number(body.p_amount)
       const selected = state.orders
-        .filter((order) => body.p_order_ids.includes(order.id) && order.status === 'unpaid')
+        .filter((order) => body.p_order_ids.includes(order.id) && order.status === 'unpaid' && !order.deleted_at)
         .sort((a, b) => a.placed_at.localeCompare(b.placed_at))
       const allocatedByOrder = new Map<string, number>()
       for (const allocation of state.allocations) allocatedByOrder.set(allocation.order_id, (allocatedByOrder.get(allocation.order_id) ?? 0) + allocation.amount)
@@ -220,6 +257,71 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       }
       state.payments.push({ id: paymentId, paid_at: body.p_paid_at, amount: body.p_amount, note: body.p_note })
       await route.fulfill({ status: 200, json: paymentId })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/record_installment_payment' && method === 'POST') {
+      const plan = state.installmentSummary.find((item) => item.id === body.p_plan_id)
+      const amount = Number(body.p_amount)
+      if (!plan || !Number.isSafeInteger(amount) || amount <= 0 || amount > plan.total_amount - plan.total_paid) {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Contribution exceeds the remaining balance' } })
+        return
+      }
+      const payment = { id: newId(), plan_id: plan.id, paid_at: body.p_paid_at, amount, note: body.p_note }
+      state.installmentPayments.push(payment)
+      plan.total_paid += amount
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/update_order' && method === 'POST') {
+      const order = state.orders.find((item) => item.id === body.p_order_id)
+      const allocated = state.allocations.filter((item) => item.order_id === body.p_order_id).reduce((sum, item) => sum + item.amount, 0)
+      if (!order || order.deleted_at || order.status === 'cancelled' || (allocated > 0 && (order.amount !== body.p_amount || order.placed_at !== body.p_placed_at || order.billing_cycle_id !== body.p_billing_cycle_id))) {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order cannot be updated' } })
+        return
+      }
+      Object.assign(order, { description: body.p_description, shopee_order_url: body.p_shopee_order_url, amount: body.p_amount, placed_at: body.p_placed_at, billing_cycle_id: body.p_billing_cycle_id })
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/soft_delete_order' && method === 'POST') {
+      const order = state.orders.find((item) => item.id === body.p_order_id)
+      const allocated = state.allocations.filter((item) => item.order_id === body.p_order_id).reduce((sum, item) => sum + item.amount, 0)
+      const cycle = state.cycles.find((item) => item.id === order?.billing_cycle_id)
+      if (!order || order.status !== 'unpaid' || allocated > 0 || order.deleted_at || cycle?.status === 'closed') {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order cannot be deleted' } })
+        return
+      }
+      order.deleted_at = new Date().toISOString()
+      order.deleted_by = userId
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/restore_deleted_order' && method === 'POST') {
+      const order = state.orders.find((item) => item.id === body.p_order_id)
+      const cycle = state.cycles.find((item) => item.id === order?.billing_cycle_id)
+      if (!order?.deleted_at || cycle?.status === 'closed') {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Order cannot be restored' } })
+        return
+      }
+      order.deleted_at = null
+      order.deleted_by = null
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/update_my_profile' && method === 'POST') {
+      const profile = state.profiles.find((item) => item.id === userId)
+      if (!profile || (body.p_avatar_path && !state.storageObjects.has(body.p_avatar_path))) {
+        await route.fulfill({ status: 400, json: { code: 'P0001', message: 'Profile or avatar object not found' } })
+        return
+      }
+      profile.full_name = body.p_display_name
+      profile.avatar_path = body.p_avatar_path
+      await route.fulfill({ status: 204 })
       return
     }
 
@@ -333,10 +435,14 @@ export const test = base.extend<{ expectNoHorizontalOverflow: () => Promise<void
 export { expect }
 
 export async function signIn(page: Page, role: TestRole) {
-  const email = role === 'admin' ? 'admin@example.test' : 'viewer@example.test'
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password', { exact: true }).fill('test-password')
-  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  const shortcut = page.getByTestId(role === 'admin' ? 'local-login-admin' : 'local-login-tester')
+  if (await shortcut.isVisible().catch(() => false)) {
+    await shortcut.click()
+  } else {
+    await page.getByLabel('Email').fill(role === 'admin' ? 'admin@example.test' : 'viewer@example.test')
+    await page.getByLabel('Mật Khẩu').fill('test-password')
+    await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  }
   await expect(page.getByRole('button', { name: 'ShopeeLin — Tổng Quan' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
 }

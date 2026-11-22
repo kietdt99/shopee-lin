@@ -62,6 +62,30 @@ Use Shopee orange as the app's accent color with white cards and neutral gray ba
 
 Use a vertical left navigation sidebar on desktop and a compact horizontal navigation on mobile. Show a clickable ShopeeLin wordmark that returns to Tổng Quan. Use Title Case labels for the main navigation tabs.
 
+## 2026-11-22 — No hard deletion and retained close history
+
+Application records are never hard-deleted. Admin can soft-delete an unpaid order only when it has no payment allocations; the row remains visible as “Đã Xóa”, is excluded from debt totals, and can be restored while its cycle is open. Orders with any allocation, including paid orders, use the cancellation/refund flow. Reopening a billing cycle marks its closing snapshot as reopened and retains it; a later close creates a new snapshot version. App database roles must not have direct DELETE access to business tables.
+
+## 2026-11-22 — Optional Shopee order URL
+
+An order may store a validated Shopee purchase URL. Admin can open it using the View action in a new tab. Historical workbook rows do not include regular Shopee order URLs, so their View actions remain disabled until a URL is added.
+
+## 2026-11-22 — Orders table scan and required fields
+
+Put the selection checkbox before the order date, and show billing cycle in its own column after amount so long descriptions remain readable. Mark required order fields (description, date, and amount) with an asterisk in both create and edit dialogs; keep Shopee URL explicitly optional. Use a ChevronDown icon for the cycle/status filter control. The billing-cycle choices use a searchable, fixed-height scroll area and still require the explicit Apply Filter action.
+
+## 2026-11-22 — Private user avatars
+
+Profiles may store a private avatar object path. Each signed-in user can read/upload only within their own UUID folder; only JPEG, PNG, and WebP up to 2 MiB are accepted. The UI stores the object path and uses a short-lived signed URL for display. No client delete policy exists; replaced and abandoned uploads remain retained to honor the no-hard-delete rule. Profile name and avatar path update through a self-only RPC.
+
+## 2026-11-22 — Distinct installment actions
+
+Creating a repayment plan records the liability name and total. Recording a contribution adds one dated amount to that existing plan's history. The UI labels these actions separately; users record S25 Ultra contributions on its existing plan and create a plan only for a new installment liability.
+
+## 2026-11-22 — Preserve financial invariants after allocation
+
+Once an order has any payment allocation, its amount, placed date, and billing cycle are immutable; descriptive text and Shopee URL may be updated without changing debt history. Installment contributions cannot exceed the remaining plan balance, even under concurrent requests. An earlier cycle cannot be reopened while a later cycle is closed; reopen from newest to oldest so stored snapshots remain consistent.
+
 ## 2026-11-21 — Serialize order financial writes
 
 `record_order_payment` and `cancel_order` lock billing cycles before order rows in a stable order. Payment allocation locks both the selected orders' cycles and the cycle(s) containing `p_paid_at`, because reports include payments by paid date. This serializes payment allocation with cancellation and cycle close. `cancel_order` also rejects an already-cancelled order before writing a refund adjustment, preventing concurrent or repeated calls from recording duplicate refunds. Apply the migration before relying on these guards in Supabase.
@@ -70,3 +94,39 @@ Use a vertical left navigation sidebar on desktop and a compact horizontal navig
 
 Local development uses an isolated Supabase stack with seeded Admin and Viewer-test Auth users. The login shortcuts appear only in Vite development when the configured Supabase API is loopback on port 54321. They authenticate against local Supabase using a local-only password; production builds and hosted Supabase URLs never show the shortcuts. Local test accounts use the same allowlisted emails to exercise the real role trigger and RLS, but local data and passwords are separate from production. The stack starts from the checked-in schema snapshot in a generated, ignored local workspace so it does not replay the unresolved hosted migration history.
 
+
+## 2026-11-22 — Wide desktop content frame
+
+Cap the centered application shell at 2048px instead of 1480px. This uses large desktop displays more effectively while preserving a centered frame and the existing 900px tablet/mobile layout behavior.
+
+## 2026-11-22 — Sidebar panel and footer
+
+Give the left navigation its own white bordered card surface so it reads separately from the page canvas. Show a larger profile card at the bottom with an avatar, display name, and two compact side-by-side actions labeled `Hồ Sơ` and `Đăng Xuất`. Use a bundled default avatar for every account without an uploaded image. Place the `v0.1.0` label below and left-aligned. Constrain sidebar children to the panel width so long action text cannot stretch the navigation column. At mobile widths, preserve horizontal tabs and adapt the profile card to a compact row with actions below it.
+
+Keep profile email read-only for all roles and give it a visible read-only treatment. Mark the required display name with `*` in the Hồ Sơ dialog.
+
+## 2026-11-22 — Required marker stays with its label
+
+Required field labels use a single inline title wrapper containing both the label text and `*`. Do not place the marker as a separate grid child of a `<label>`, because the shared label layout is a CSS grid and would move it onto another row.
+
+## 2026-11-22 — Test maintenance is part of QA
+
+For every change, QA checks whether related tests still match the current UI, product rules, and API behavior, searches for stale selectors and assertions, and adds regression coverage for confirmed defects. A passing suite is not treated as proof that the changed requirements are covered; material gaps remain explicit in the coverage map.
+
+
+## 2026-11-22 — Role and current-period card hierarchy
+
+Show the signed-in role centered beneath the display name in the sidebar profile, using smaller gray text. Keep profile actions neutral by default with consistent icon/text alignment and prevent labels from wrapping. Do not repeat the Admin role as a badge in the current-period card; role context belongs in the profile card.
+
+
+## 2026-11-22 — Current-period card label
+
+Style “Kỳ Hiện Tại” as a neutral gray metric label and show the cycle label with its full 21st-to-20th date range beneath it; the label already supplies the word “Kỳ”. Include the range in the cycle filter and report selector, but keep the Orders table cycle column compact with only the month/year label.
+
+## 2026-11-22 — Cycle range filter layout
+
+Render cycle filter options in a single-column scroll list. Put the checkbox at the left, cycle label on the first line, and a smaller date range on the second line so dates remain associated with the correct option on narrow screens.
+
+## 2026-11-22 — Admin deleted-order filter
+
+Always show the **Đã Xóa** status choice in the Admin order filter, including when there are currently no deleted orders. Viewer remains read-only and does not get this Admin-only filter choice unless retained deleted history is present in their order list.

@@ -1,5 +1,16 @@
 import { test, expect, mockSupabase, signIn } from './fixtures'
 
+test('Hosted login form rejects an invalid password', async ({ page }) => {
+  await mockSupabase(page, 'viewer')
+  await page.goto('/')
+  await expect(page.getByLabel('Email')).toBeVisible()
+  await expect(page.getByLabel('Mật Khẩu')).toBeVisible()
+  await page.getByLabel('Email').fill('viewer@example.test')
+  await page.getByLabel('Mật Khẩu').fill('wrong-password')
+  await page.getByRole('button', { name: 'Đăng nhập' }).click()
+  await expect(page.getByText('Email hoặc mật khẩu chưa đúng.')).toBeVisible()
+})
+
 test('Viewer sees the payment QR fallback when recipient details are unconfigured', async ({ page }) => {
   await mockSupabase(page, 'viewer')
   await page.goto('/')

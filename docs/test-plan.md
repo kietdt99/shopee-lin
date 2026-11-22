@@ -2,27 +2,57 @@
 
 This checklist is the release QA plan for v0.1.0. It describes expected behavior; an unchecked item is not evidence that the flow has been tested. Use test orders where possible and clean them up before release.
 
-Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. The current Playwright suite runs on desktop and mobile Chromium and mocks Supabase requests. It covers login layout/error handling, Admin account/recovery-link UI, Viewer navigation and hidden Admin controls, QR guidance, empty orders plus populated installment/report views, and the ledger/export/cycle-close flows listed below. These tests validate mocked UI behavior only; live Supabase Auth/RLS/database checks below remain required.
+### Latest verification — 2026-11-22
+
+- 2026-11-22 full UX regression audit: expanded the suite to assert current-period range and neutral label, compact table cycle label, single-column filter option layout/range, Admin-only deleted filter availability, no-selection styling for interactive controls, text-selectable search, filter outside-click/Escape closure and focus restoration, and dialog backdrop semantics. `pnpm test:e2e` passed 104/104 in 36.8s across desktop, mobile 390/320px, target viewports, and QR fallback. `pnpm build` passed (1,629 modules). Automated Supabase remains mocked; live RLS/Auth/Storage gates are unchanged.
+- After the local login card identity change: `pnpm test:e2e` passed 77/77 (30.9s), including checks that Admin/Viewer role and display name are visible and both emails are absent from their cards.
+- `pnpm build` passed on the feature branch (1,628 modules).
+- After the final Vietnamese API/Storage error copy pass: `pnpm test:e2e` passed 77/77 on integrated local `main` (32.7s), covering desktop Chromium (1280 px), mobile Chromium (390 px and 320 px), and hosted-login/QR fallback.
+- 2026-11-22 sidebar/profile follow-up: audited selectors and assertions for the changed UI, added explicit nav inset alignment, left-aligned version, default avatar loading, Admin and Viewer email read-only, required display-name, and compact-action assertions. `pnpm test:e2e` passed 89/89 in 35.1s across desktop, 390px/320px mobile, four target viewports, and QR fallback. This is mocked browser QA; actual phone scaling, private Storage ownership, and production Auth remain separate checks.
+- 2026-11-22 profile/overview polish: sidebar role is centered below the display name in smaller gray text; action labels do not wrap (stacked on desktop, side-by-side on mobile); duplicate Admin badge is removed from the current-period card; total-paid metric remains Admin-only. Current-period label is neutral gray and the value shows cycle label plus the 21st-to-20th range. Added regression assertions for role geometry/style and role-based overview visibility.
+- `pnpm build` passed after the same source changes (1,628 modules); run `git diff --check` before committing.
+- Local Supabase started without `db reset`; the one-time workbook import is present in local Postgres: 60 orders, 2 payments, 24 allocations, 2,999,619 VND outstanding Shopee debt, and 18,000,000 VND S25 Ultra remaining.
+- Local Admin signed into the app. A real local Viewer Auth session read its profile and orders through PostgREST; Viewer installment-plan insert was denied by RLS (HTTP 403), and payment/cancellation/close/reopen RPCs were rejected by Admin guards. No production Auth email was requested.
+- PostgreSQL reports `authenticated` has no table-level `DELETE` privilege on any of the nine public app tables. This does not test every trigger/FK behavior or prove hosted policies.
+- The suite is mocked and cannot establish local financial concurrency, avatar Storage ownership, or production Auth/QR/recovery behavior. Keep the release gates below open until those checks are performed.
+
+Install the browser once with `pnpm exec playwright install chromium`, then run `pnpm test:e2e`. The suite runs mocked Supabase flows on desktop Chromium (1280 px), mobile Chromium at 390 px and 320 px, plus a target-device viewport check (2560×1440, 1920×1080, 360×780, 384×832) and a hosted-login/QR-fallback project. The mocked login shortcuts exercise only the development UI; they do not start local Supabase or prove Auth/RLS. All browser assertions validate UI/request contracts only; authenticated local Supabase checks below remain required.
 
 ### Playwright coverage map
 
 | Flow | Current coverage | Manual/release check |
 | --- | --- | --- |
-| Order create and edit | Implemented: creates May 20, May 21, and Dec 21 orders, asserts cycle assignment including year rollover, then edits an order and checks the PATCH payload and displayed amount. | Live database assignment and closed-cycle constraints remain part of release QA. |
-| Unpaid order delete | Implemented: confirms the delete flow and verifies the order is removed. | Verify database delete policy and closed-cycle constraints. |
-| Partial payment across multiple orders and over-allocation rejection | Implemented: checks one payment across two selected orders, allocations and statuses, then confirms an excessive second payment is rejected without another payment record. | Verify live RPC allocation, ledger balance, and invalid-input behavior. |
+| Order create and edit | Implemented: creates May 20, May 21, and Dec 21 orders, asserts cycle assignment including year rollover, edits an order, and checks the update RPC payload/display. Allocated orders expose locked date/amount fields. | Live date/cycle guards and direct API bypass denial remain local Supabase checks. |
+| Orders table and required fields | Implemented: selection is the first column, cycle follows amount and remains a compact month/year label; create/edit forms mark description/date/amount required while Shopee URL remains optional. | Check table fit/scroll and required markers at 1280 px, 390 px, and 320 px. |
+| Target device layout | Automated viewport coverage: 2K 27-inch desktop (2560×1440), 14-inch laptop (1920×1080), Samsung S23 Ultra representative CSS viewport (360×780), and Samsung S25 Ultra representative CSS viewport (384×832); asserts centered desktop frame and no horizontal overflow. | Spot-check the actual browsers/device scaling on the owner's two Samsung phones and 27-inch display; browser CSS viewport can vary with OS scaling and zoom. |
+| Sidebar and profile form | Assert sidebar tabs fill the padded inner width, the left-aligned version label, non-wrapping profile actions (stacked on desktop, side-by-side on mobile), centered role beneath display name, default avatar image load, Admin/Viewer read-only email, required display-name marker/validation, and profile dialog outside-click behavior. | Confirm actual account avatar signed URLs load from private Storage for each user. |
+| Overview role visibility | Assert role appears in the sidebar for Admin and Viewer; the current-period card uses a neutral label and cycle label plus exact 21st-to-20th range with no duplicate role badge; only Admin sees the total-paid metric. | Validate the real paid total against the ledger on local Supabase. |
+| Required marker placement | Assert every `*` in profile and order create/edit forms shares one line with its label text at desktop and mobile widths. | None for layout; verify native required-field validation remains consistent when fields are empty. |
+| Dialog interaction | Assert profile dialog stays open for inside clicks and closes when clicking the backdrop; create/edit dialogs also close from their visible close control. | Check scroll behavior on actual mobile devices for the longest dialogs. |
+| Search and filters | Implemented: typing does not search until Enter/Search; search button submits; cycle/status multi-select filters do not apply until Apply and combine. The popover disables accidental text selection, closes on outside click/Escape, and Escape returns focus to its trigger; search input remains text-selectable. | No DB check needed; visually inspect 320/390 px filter panel reachability and real touch interaction. |
+| Long cycle history filter | Implemented: a chevron icon indicates open/closed state; cycle search filters a fixed-height scrollable list with each cycle's date range while Apply remains explicit. | Verify scrolling and keyboard access when many cycles exist at mobile and desktop widths. |
+| Description lines and Shopee URL | Implemented: flattened three-item sample splits into three lines while an ambiguous description stays intact; valid URL gets safe new-tab attributes and invalid URL is disabled. | Verify no imported URL is inferred; URL validation is client UX, not auth/security. |
+| Unpaid order delete/restore | Implemented: confirmation triggers `soft_delete_order`, retains and greys the row, removes edit/delete actions, excludes debt, allows Restore, and sends no DELETE request. | Local Supabase must verify retained history and server denial for Viewer, allocated/paid, deleted, and closed-cycle orders. |
+| Admin deleted-order filter | Assert Admin always sees the `Đã Xóa` filter option, including with no deleted rows; Viewer does not see this Admin-only option by default. A deleted row remains visible with its status and Admin Restore action. | Verify against retained deleted data in local Supabase. |
+| Partial payment across multiple orders and over-allocation rejection | Implemented: checks one payment across two selected orders, allocations/statuses, partial balance, and an excessive second payment rejected without another payment record. Paid orders have no selection checkbox. | Verify live RPC atomic rollback, integer-input behavior, ledger balance, and direct Viewer/Admin API authorization. |
 | Paid order cancellation/refund | Implemented: cancels a paid order, checks the refund amount sent to the RPC, cancelled UI state, and refund ledger adjustment. | Verify live refund limits and resulting report totals. |
 | Admin cycle close/reopen UI | Implemented: closes a mocked populated cycle, checks the close RPC payload, snapshot totals and closed-state UI; reopens it, checks the reopen RPC, and verifies the next cycle's prior opening balance is restored in the UI. Runs on desktop and mobile Chromium. | Verify the live end-date guard, persisted snapshot stability, downstream balance restoration, Viewer/RLS denial, and close/payment/cancellation concurrency. |
 | 20th/21st billing-cycle boundary and year rollover | Implemented: asserts May 20→May cycle, May 21→June cycle, and Dec 21→January 2027 cycle. | Verify persisted assignment and ending-month labels against live data. |
 | Excel-compatible export | Implemented: downloads the selected cycle's `.xls` report and checks workbook content, order/payment details, and filename. | Reconcile exported values with live ledger/report data. |
 | PDF/print action | Implemented: verifies the print action invokes `window.print()` and print media hides app navigation/actions while retaining the report. | Confirm browser print dialog behavior and output on target devices. |
-| Profile display-name edit | Implemented: updates the current user's name through the constrained RPC and verifies the session header changes. | Verify the RPC cannot change another profile or role in live Supabase. |
+| Profile name/avatar edit | Implemented: self profile name save, read-only email, unsupported MIME and >2 MiB client rejection, upload/signed preview, and self avatar path save via mocked Storage/RPC. | Local Supabase must prove owner-only upload/read, private signed URL access, and self-only profile RPC; mocks prove no RLS. |
+| Local login shortcut UI | Implemented: cards show only **Admin / Bé Kịt Thần Kỳ** and **Viewer / Tester Quèn**, never email; shortcut click submits the expected local-only email/password. Hosted-login project covers regular password form error. | Start Docker/Supabase separately to verify seeded Auth users, role trigger, sessions and RLS. Playwright network mocks do not authenticate against local Supabase. |
+| Installment plan and contributions | Implemented: no-plan states for both roles, existing plan with no history, Admin create, cap rejection, contribution history/progress/remaining; Viewer has no mutation action. | Local Supabase must verify `record_installment_payment` authorization, cumulative cap including concurrent requests, and persisted totals. |
 
 Automated ledger scenarios use mocked order/payment/cycle data and assert the UI plus key request payloads. The mocked close/reopen test exercises UI state and modeled balance changes; it does not prove the RPC's persisted database effects. Keep database authorization, ledger integrity, live close/reopen behavior, and export reconciliation against real data in the manual/release checks; mocked browser coverage cannot establish those guarantees.
 
 ## Preconditions
 
-- [ ] Run the app locally against the intended Supabase project and confirm the URL uses the project root, not `/rest/v1/`.
+### Test maintenance rule
+
+For every code change, QA reviews the related existing tests against the current product spec and implementation, searches for stale selectors/copy/expectations, and confirms the changed requirement has an observable assertion. Add regression coverage for confirmed defects; update this map and explicitly list material gaps that need manual or live-service checks. A green suite alone does not establish complete coverage.
+
+- [x] Run the app locally against the isolated loopback Supabase project; confirm the URL uses the project root, not `/rest/v1/`.
 - [ ] Confirm required database migrations are applied, including ledger/report and profile display-name migrations.
 - [x] Confirm local and GitHub Pages callback URLs are in Supabase Auth's redirect allowlist (verified with Supabase CLI config diff after the production update).
 - [x] Confirm GitHub Actions variables exist for Supabase URL/publishable key and VietQR recipient name, account, and bank.
@@ -68,7 +98,11 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 
 - [x] Run `supabase db query --remote=<project-ref> --read-only --file supabase/verification/function_execute_acl.sql`; after applying the ACL migration, it returned zero rows. Anonymous calls to all six exposed app RPCs returned HTTP 401; trigger-only and legacy full-payment functions are not client-executable.
 - [x] Run a rollback-only production SQL role simulation with the Viewer identity after ACL hardening: Viewer can read orders, cannot insert an installment plan or call the payment RPC, and no fixture remains.
+- [x] Authenticated local Viewer API smoke: profile/orders reads succeed; installment-plan insert fails at RLS with HTTP 403; payment, cancellation, close, and reopen RPCs fail at Admin guards. No valid row was created.
+- [x] Local Postgres confirms no `DELETE` privilege for `authenticated` on any of the nine public app tables.
 - [ ] With a Viewer session, call table writes and Admin-only RPCs through PostgREST; verify RLS and `is_admin()` deny them. Catalog checks and SQL role simulation do not replace this authenticated API test.
+
+The local API check above is evidence for the named local operations only. Production Viewer authorization, broader table writes, profile changes, avatar Storage ownership, and recovery-function access remain separate gates.
 
 - [ ] Viewer can read the approved ledger, orders, payments, installment plans/history, cycles, and reports.
 - [ ] Viewer API writes to orders, payments, allocations, installment plans/payments, ledger entries, cycle status/closings, and profiles are denied.
@@ -79,12 +113,18 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 ## Orders and payment allocation
 
 - [ ] Empty order list shows a useful empty state for both roles; Viewer does not see Admin controls.
-- [ ] Admin creates, edits, and deletes a fully unpaid order with positive whole-VND amounts.
+- [ ] Admin creates and edits an unpaid order; soft-deleting it requires confirmation, retains history, and can be reversed with Restore. All amounts must be positive whole-VND integers.
 - [ ] Orders dated on the 20th and 21st are assigned to the expected 21st–20th billing cycles; cycle labels use the ending month.
 - [ ] Admin selects multiple unpaid orders and records one received payment. Check payment total, allocations, order statuses, and resulting outstanding balance.
 - [ ] Partial payment leaves the relevant order unpaid with the correct remaining amount; exact settlement marks it paid.
 - [ ] Zero, negative, decimal, or over-capacity payment input is rejected without writing partial records.
-- [ ] Cancelling a fully unpaid order follows the delete confirmation path. Cancelling a paid or partially allocated order follows the cancellation/refund path; refund cannot exceed received allocations.
+- [ ] Soft-deleting an unpaid order with no allocations requires confirmation, preserves its row, excludes it from balances, displays a disabled Edit plus Restore action, and restoration returns it to unpaid. No app role can hard-delete an order through PostgREST.
+- [ ] A paid or partially allocated order cannot be soft-deleted. It follows the cancellation/refund flow; refund cannot exceed received allocations, and its payment history remains intact.
+- [ ] Reopening a cycle retains its prior close snapshot; re-closing creates a new active version. Admin cannot hard-delete cycles, payments, allocations, installment data, ledger rows, profiles, or close history through the API.
+- [ ] Profile avatar accepts JPEG/PNG/WebP up to 2 MB, displays a private signed preview, and saves only the current user's object path. Unsupported/oversized files fail visibly; replaced avatar objects remain retained.
+- [ ] Orders table displays cycle labels rather than UUIDs; search runs only on Enter/Search; multiple cycle and status filters apply only after clicking “Áp Dụng Bộ Lọc”.
+- [ ] Shopee URLs open only through the Admin Eye action in a new tab; empty/invalid URLs leave the action disabled. The historical import should not infer URLs absent from the workbook.
+- [ ] Multi-product descriptions preserve separate Excel blocks. For already flattened descriptions, split only when every chunk validates; otherwise keep the description intact.
 - [x] Before applying `20261121_z_serialize_order_financial_rpcs.sql`, audit existing refund ledger rows for duplicates; 2026-11-21 check found zero refund rows. The migration does not reconcile historical entries.
 - [x] After applying the migration, run a synthetic RPC smoke test: payment allocation succeeded, first cancellation created one refund, second cancellation was rejected, and all temporary rows were removed. Post-apply function checks confirmed both routines remain `SECURITY DEFINER`, executable by `authenticated`, with the expected guards.
 - [x] Live two-session payment/cancellation race on 2026-11-21: both RPC requests completed in a valid order; final order was cancelled with exactly one full allocation and no refund adjustment. The open cycle remained open; all synthetic rows were removed and verified absent.
@@ -118,7 +158,7 @@ Use both the Viewer UI and authenticated API/PostgREST calls. UI hiding alone do
 ## Release gate
 
 - [ ] Complete manual checks above on local Supabase-backed UI at mobile and desktop widths; record failures and retest fixes.
-- [ ] Run the documented production build and ensure it succeeds. Do not release with unresolved TypeScript/build errors.
+- [x] Run the documented production build and ensure it succeeds. Do not release with unresolved TypeScript/build errors. (Verified locally 2026-11-22; rerun on the integrated branch before release.)
 - [x] Verify GitHub Pages deployment serves the production login shell (HTTP 200) at 390px and 1440px with no horizontal overflow. Confirm the production bundle contains the expected Supabase URL/publishable key and TPBank payee settings.
 - [ ] Verify live Viewer API/RPC write denial and real Admin/Bé Lin Auth and recovery flows; smoke-test the authenticated production QR, reports, balances, and role visibility before creating tag `v0.1.0`. The Viewer session and Bé Lin's one-time activation are still pending.
 - [ ] Reconcile Supabase migration history before the next CLI-managed database migration. Runtime schema and ACL changes are applied and verified, but the project has no migration-history table; do not run `db push` against the current date-only migrations.

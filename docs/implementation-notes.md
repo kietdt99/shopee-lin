@@ -1,5 +1,13 @@
 # Implementation notes
 
+## 2026-11-22
+
+- Expanded the desktop content frame to 2048px, separated the left navigation into a bordered white panel, moved profile edit/sign-out controls to its footer, and added the `v0.1.0` label below. QA viewport targets: 2560×1440, 1920×1080, 360×780, and 384×832; actual device/browser scaling still needs owner spot-check.
+- Follow-up: left-align the version label and enlarge the sidebar profile card with the uploaded avatar or a bundled default avatar for all accounts. Keep the `Hồ Sơ` and `Đăng Xuất` actions compact and side by side, and constrain the sidebar content to prevent nav items shifting toward the outer edge.
+- The Hồ Sơ email control was already `readOnly`; it now has explicit read-only styling and label text. The required display name now shows the standard `*` marker.
+- Fixed required-marker layout: the `*` now shares an inline title wrapper with the text in Hồ Sơ and all required order fields. Added a decision note because the label component is a CSS grid and separate children become separate rows.
+- Test maintenance rule added to the QA and Tech Lead playbooks. The expanded profile/sidebar checks pass 89/89 Playwright tests (mocked UI), including Admin/Viewer email lock, required name, avatar fallback, nav insets, action placement, and version alignment. `pnpm build` passed with the UI implementation; live Storage/Auth and physical-device rendering remain unverified.
+
 ## 2026-11-21
 
 - Playwright E2E smoke tests run with `pnpm test:e2e` using isolated fake Supabase URLs and network mocks. Desktop and mobile Chromium coverage includes login errors, Admin recovery-link UI, Viewer read-only navigation, reports/installments/QR, horizontal overflow, self display-name editing, Admin order create/edit/delete with 20th/21st and year-rollover cycle assignment, partial payment across multiple orders with over-allocation rejection, paid-order cancellation/refund, Excel-compatible export content, and print action/layout. Tests do not prove live RLS, real Auth token behavior, or persisted ledger integrity; see `docs/test-plan.md` for separate release QA.
@@ -32,7 +40,21 @@
 - Production RLS policies and financial RPC definitions were inspected in the catalog. This is not equivalent to an authenticated Viewer API write-denial test. The Supabase migration history table is absent, and the five date-only migration filenames all parse to version `20261121`; avoid CLI `db push` until migration history is reconciled.
 - After the security PR merged, applied `20261121213000_restrict_anonymous_function_execute.sql` to production. Its read-only verifier returned zero rows; direct anonymous PostgREST calls to `is_admin`, payment, cancellation, close/reopen, and display-name RPCs all returned HTTP 401. The authenticated Viewer API denial test remains pending because no Viewer session/password is available to the QA runner.
 - Protected GitHub `main`: PRs and the passing `build-and-e2e` check are required, the branch must be up to date, conversations must be resolved, and force-push/deletion are disabled. Approval count is zero because this repository has one maintainer; the rule also applies to admins.
-- Merged the release-readiness docs and added mocked Playwright cases for QR fallback, empty installment-plan state for both roles, and an installment plan with no payment history. The updated suite passes 33/33 tests across desktop, mobile, and QR-fallback projects; `pnpm build` passes. These are mocked Supabase flows.
+
+## 2026-11-22 — Orders, retained history, and profile UI (local feature branch)
+
+- Work is on `feature/orders-management` from `main`. The Orders table supports submitted search, staged multi-select filters, human-readable cycle labels, multi-product lines, optional validated Shopee URLs, soft-delete/restore controls, and excludes deleted orders from balances/reports. Paid rows are not eligible for another payment allocation.
+- The `20261122100000_soft_delete_and_append_only_history.sql` migration preserves reopened close snapshots, denies app-role DELETE/TRUNCATE access, replaces broad Admin policies with narrow write grants, and uses one transaction-scoped advisory lock to serialize direct order writes with financial/cycle RPCs. Migration and canonical snapshot were statically reviewed; no PostgreSQL runtime validation or hosted application was performed.
+- The `20261122120000_profile_avatars.sql` migration adds private user-scoped avatar Storage and `update_my_profile`. The existing `update_my_display_name(text)` retains its text return type for compatibility. Browser integration stores only the private object path and uses short-lived signed URLs. No Storage delete policy exists.
+- Local Supabase bootstrap stages the canonical snapshot plus financial, soft-delete, avatar, and installment guard migrations and applies pending migrations without `db reset`. Docker Desktop was later installed and the isolated local stack was successfully started; local Auth/RLS checks are recorded below. No production Supabase command was run for this feature pass.
+- The workbook importer was executed with the bundled Python runtime: 60 orders; `05.2026` contributes 7 orders / 3,403,220 VND; Shopee debt reconciles to 2,999,619 VND; S25 Ultra total is 21,599,000 VND, paid 3,599,000 VND, remaining 18,000,000 VND. All 60 deterministic order IDs match the previous output. Generated SQL stays in ignored `supabase/local/`.
+- The importer was generated twice and produced byte-identical SQL; it reads the frozen workbook and writes UTF-8 SQL only. The prepared idempotent import ran once in local Postgres under an ignored marker; local reconciliation is recorded below.
+- Added `20261122130000_installment_payment_guards.sql`: concurrent-safe installment cap, Admin RPCs for installment contributions and order edits, direct API write revocations, required order/cycle validation, and a downstream closed-cycle reopen guard. UI calls the RPCs. Static review and `pnpm build` pass; PostgreSQL runtime validation is still open.
+- The first local startup attempt stopped at the Docker prerequisite. After Docker Desktop became available, the stack started, migrations applied, the one-time history import ran, and local Auth users were seeded. The script does not reset a local database; the app targets only the isolated loopback stack.
+- QA updated the stale hard-delete/profile expectations and added coverage for order search/filter, soft-delete/restore, Shopee links, item descriptions, avatar, installment contribution, account recovery UI, and 320/390/1280 px layouts on `test/orders-management`. The suite passed 77/77 mocked tests; mocks do not prove live database/Auth/Storage behavior.
+- Reusable agent playbooks now live under `.agents/skills/` and are referenced from `AGENTS.md`; each delegated role reads its matching playbook before work.
+- Reusable agent playbooks now live under `.agents/skills/` and are referenced from `AGENTS.md`; each delegated role reads its matching playbook before work.
+- Earlier mocked Playwright coverage for QR fallback, empty installment-plan state for both roles, and an installment plan with no payment history passed 33/33 tests. The expanded suite now passes 77/77 cases on desktop, 390 px, 320 px, and QR-fallback projects. These are mocked Supabase flows.
 - `.gitignore` now excludes the one-time personal workbook and `supabase/.temp/`; the workspace has no tracked or untracked changes on `main`.
 - Production browser smoke after deployment loaded the real login shell at 390px and 1440px; both had no horizontal overflow. The deployed JavaScript bundle contains the configured Supabase URL and publishable key plus TPBank name/account/bank values. Authenticated app flows and visible QR rendering remain pending a real user session.
 - `release/v0.1.0` is protected against direct pushes, force-pushes, and deletion. The `v0.1.0` tag is intentionally pending the authenticated production smoke checks.
@@ -40,7 +62,32 @@
 
 ## 2026-11-22 — Local account shortcuts
 
-- Added `pnpm supabase:local:start` to generate an isolated CLI workdir under ignored `supabase/local/`, copy the canonical `schema.sql` as a valid baseline migration plus the corrective financial RPC migration, start local Supabase, seed the Admin and Viewer-test users through its local Auth Admin API, and write only local URL/publishable key/dev password values to ignored `.env.development.local`. It does not use the hosted project or overwrite `.env.local`.
-- Vite shows one-click Admin and Tester Quèn shortcuts only in development when the configured API host is loopback on port 54321. The local password is absent from the production bundle. Playwright passes both role shortcuts; full build and all 39 E2E tests pass.
-- Docker is unavailable in the current implementation environment, so the actual Supabase containers and local Auth API seeding still need a first run on the developer machine with Docker Desktop.
+- `pnpm supabase:local:start` generates an isolated CLI workdir under ignored `supabase/local/`, copies the canonical `schema.sql` and all required migrations, starts local Supabase, seeds Admin and Tester through the local Auth Admin API, and writes only local URL/publishable key/dev password values to ignored `.env.development.local`. It does not use the hosted project or overwrite `.env.local`.
+- Vite shows one-click Admin and Tester Quèn shortcuts only in development when the configured API host is loopback on port 54321. The local password is absent from the production bundle. Local Admin login, the actual local Viewer Auth/API check, and the 77-case mocked Playwright suite all passed; `pnpm build` passed after the desktop table layout fix.
+- Docker Desktop was installed and the actual local stack is running. Local import reconciliation: 60 orders, 2 payments, 24 allocations, 2,999,619 VND Shopee balance, S25 Ultra 21,599,000 VND total, 3,599,000 VND paid, and 18,000,000 VND remaining.
+- Local authenticated Viewer testing: profile and order reads succeeded; installment-plan insertion was denied by RLS (HTTP 403); payment, cancellation, close, and reopen RPC calls were rejected by Admin guards. A read-only PostgreSQL privilege check found no DELETE access for `authenticated` on all nine public application tables. Storage cross-user access and the remaining database financial/concurrency fixture checks are still open.
+- The app-facing password/recovery, payment/order mutation, and avatar upload error messages use Vietnamese fallbacks instead of raw English API/Storage errors. The local Orders table was visually checked on desktop; multi-item order products render on separate lines and the table has no desktop horizontal overflow. Playwright covers 320 px and 390 px without page overflow.
+- `http://localhost:5173/` remains the local app URL. No remote Supabase or GitHub deployment action was performed in this pass. The running app uses local persisted data; stopping/restarting Supabase does not reset the imported ledger.
 
+## 2026-11-22 — Integrated local QA completion
+
+- Feature commit `26b8527` and test-only commit `fba15b6` were merged locally into `main` as `39511f6` and `fe51b8a`; test code remains on its own `test/orders-management` branch as well.
+- On integrated `main`, `pnpm test:e2e` passed 77/77 across 1280 px, 390 px, 320 px, and QR fallback. `pnpm build` and `git diff --check` also passed.
+- The working local app is available at `http://localhost:5173/`; its Supabase API is loopback-only and the imported history reconciles to 2,999,619 VND Shopee debt and 18,000,000 VND S25 Ultra remaining.
+- Local Viewer Auth/RLS smoke passed: profile/order reads succeeded; installment-plan insert was rejected by RLS; payment, cancellation, close, and reopen RPCs were rejected by Admin guards. Authenticated has no table-level DELETE privilege on any public app table.
+- Local mocked UI QA found no P0–P3 defects. Remaining production release gates are real Admin/Bé Lin Auth and QR/report/recovery checks, avatar Storage cross-user denial, local financial concurrency/invariant fixtures, and reconciliation of the hosted migration history. The `v0.1.0` tag remains uncreated until those gates pass.
+- Local `main` is six commits ahead of `origin/main` after this local completion commit. No changes were pushed to GitHub, no hosted Supabase mutation was performed, and no production deploy or tag was created in this pass.
+- After the final API/Storage error copy updates, `pnpm build` passed (1,628 modules), `pnpm test:e2e` passed 77/77 (32.7s), and the final diff passed whitespace validation before commit.
+
+
+- Sidebar profile shows the user's role centered below their display name. The current-period card omits the duplicate Admin badge; the aggregate payment metric remains Admin-only per the existing product decision.
+
+
+- Current-period overview label uses the same neutral gray text treatment as metric labels; the value below it is the cycle month/year only (for example, 12.2026).
+
+- Cycle labels in Overview, the Orders filter, and Reports include their 21st-to-20th date ranges. The Orders table keeps the compact ending-month label. Cycle choices use a single-column card list with the checkbox, label, and date range visually grouped.
+- Report cycle selector is constrained to the panel width to prevent long date-range labels from causing horizontal page overflow on 320px mobile screens.
+- The Admin Orders status filter always includes `Đã Xóa`, even when no deleted orders currently exist. The Viewer only sees statuses represented in their retained order history.
+- Filter popovers disable accidental text selection; the cycle search input explicitly keeps text selection enabled for normal editing.
+- Clickable buttons, menu summaries, and filter-option labels disable browser text selection across the app. Editable search inputs explicitly opt back into text selection.
+- The Orders filter popover closes when a pointer lands outside it or when Escape is pressed; Escape returns focus to the filter summary.
