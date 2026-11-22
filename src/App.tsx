@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
@@ -993,9 +993,37 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
 }
 
 function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: string; onClose: () => void }) {
+  const [downloading, setDownloading] = useState(false)
+  const [downloadError, setDownloadError] = useState('')
+
+  const downloadQr = async () => {
+    if (!imageUrl || downloading) return
+    setDownloading(true)
+    setDownloadError('')
+    try {
+      const response = await fetch(imageUrl)
+      if (!response.ok) throw new Error('QR download failed')
+      const image = await response.blob()
+      const objectUrl = URL.createObjectURL(image)
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = 'ShopeeLin-QR-Thanh-Toan.png'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    } catch {
+      setDownloadError('Không thể tải ảnh QR. Bạn có thể mở ảnh riêng rồi chọn lưu, hoặc dùng thiết bị khác để quét.')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
   return <Dialog title="Thanh toán" onClose={onClose}>
     <div className="payment-card">
       {imageUrl ? <img src={imageUrl} alt="Ảnh QR thanh toán" /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {imageUrl && <div className="payment-qr-actions"><button className="secondary-button" type="button" onClick={() => void downloadQr()} disabled={downloading}><Download size={17} aria-hidden="true" />{downloading ? 'Đang tải ảnh QR…' : 'Tải ảnh QR'}</button><p>Trên điện thoại, lưu ảnh rồi chọn ảnh đó trong mục quét QR của ứng dụng ngân hàng.</p></div>}
+      {downloadError && <p className="form-message" role="alert">{downloadError} <a href={imageUrl} target="_blank" rel="noopener noreferrer">Mở ảnh QR trong tab mới</a></p>}
       <p className="payment-note">{note}</p>
     </div>
   </Dialog>

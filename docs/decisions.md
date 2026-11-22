@@ -168,3 +168,7 @@ Store the active application tab in the `tab` query parameter so refresh and bro
 ## 2026-11-22 — Admin-managed payment display
 
 Expose payment display settings in a dedicated Admin-only **Thanh Toán** tab. Admin can upload the full QR image and edit its note. Display that uploaded image without repeating bank/account details beneath it. Validate that the upload is a supported readable image within the limit, but do not decode or claim to verify the QR destination. Persist current settings in Supabase; store each QR revision in private Storage and retain old objects rather than hard-deleting them. All authenticated users may read current settings and the QR image; only Admin may write them.
+
+## 2026-11-22 — Scan payment QR from the same phone
+
+Offer a **Tải ảnh QR** action beside the Viewer payment QR. Explain that the Viewer can save it and select it from the banking app's QR image/library picker. Keep the original full QR image; do not try to decode or modify it. If the browser cannot fetch the image for download, show a designed inline error with a second-device fallback.
