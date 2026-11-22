@@ -671,15 +671,20 @@ function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
     return
   }
 
-  const orderTools = filter.closest<HTMLElement>('.order-tools')
-  if (!orderTools) return
-  const orderToolsBounds = orderTools.getBoundingClientRect()
+  const triggerBounds = filter.getBoundingClientRect()
   const viewportMargin = 12
   const menuWidth = Math.min(340, window.innerWidth - viewportMargin * 2)
   const menuLeft = Math.max(viewportMargin, (window.innerWidth - menuWidth) / 2)
-  const menuTop = Math.ceil(orderToolsBounds.bottom + 8)
-  const availableHeight = Math.max(0, window.innerHeight - menuTop - viewportMargin)
-  const menuMaxHeight = Math.min(360, window.innerHeight * 0.5, availableHeight)
+  const preferredHeight = Math.min(360, window.innerHeight * 0.5, menu.scrollHeight)
+  const belowTop = Math.ceil(triggerBounds.bottom + 8)
+  const belowHeight = Math.max(0, window.innerHeight - belowTop - viewportMargin)
+  const aboveHeight = Math.max(0, triggerBounds.top - 8 - viewportMargin)
+  const placeAbove = belowHeight < Math.min(preferredHeight, 220) && aboveHeight > belowHeight
+  const availableHeight = placeAbove ? aboveHeight : belowHeight
+  const menuTop = placeAbove
+    ? Math.max(viewportMargin, Math.floor(triggerBounds.top - Math.min(preferredHeight, availableHeight) - 8))
+    : belowTop
+  const menuMaxHeight = Math.max(120, Math.min(preferredHeight || 360, availableHeight || window.innerHeight - viewportMargin * 2))
 
   menu.style.position = 'fixed'
   menu.style.top = `${menuTop}px`
@@ -731,11 +736,19 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
       openFilter.removeAttribute('open')
       openFilter.querySelector('summary')?.focus()
     }
+    const repositionOpenFilter = () => {
+      const openFilter = filterControlsRef.current?.querySelector<HTMLDetailsElement>('details[open]')
+      if (openFilter) positionOrdersFilterMenu(openFilter)
+    }
     document.addEventListener('pointerdown', closeOnOutsidePointer)
     document.addEventListener('keydown', closeOnEscape)
+    window.addEventListener('resize', repositionOpenFilter)
+    document.addEventListener('scroll', repositionOpenFilter, true)
     return () => {
       document.removeEventListener('pointerdown', closeOnOutsidePointer)
       document.removeEventListener('keydown', closeOnEscape)
+      window.removeEventListener('resize', repositionOpenFilter)
+      document.removeEventListener('scroll', repositionOpenFilter, true)
     }
   }, [])
   const remainingFor = (order: Order) => order.amount - allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
