@@ -1118,23 +1118,86 @@ test('Order sorting covers date, amount, cycle, and status without making descri
   await expect.poll(names).toEqual(['Zebra unpaid', 'Beta unpaid', 'Alpha paid', 'Cancelled order', 'Deleted order'])
 })
 
-test('Selected tab survives refresh and browser Back/Forward while preserving unrelated query state', async ({ page }) => {
+test('All tabs survive refresh and browser Back/Forward while preserving query and auth hash state', async ({ page }) => {
+  const authCallbackHash = '#type=recovery&state=qa-test-state'
   await mockSupabase(page, 'admin')
-  await page.goto('/?campaign=qa&tab=orders')
+  await page.goto(`/?campaign=qa&tab=orders${authCallbackHash}`)
   await signIn(page, 'admin')
   await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=orders$/)
+  const expectTabUrl = async (tab?: string) => {
+    await expect(page).toHaveURL((url) =>
+      url.pathname === '/'
+      && url.searchParams.get('campaign') === 'qa'
+      && url.searchParams.get('tab') === (tab ?? null)
+      && url.hash === authCallbackHash,
+    )
+  }
+  await expectTabUrl('orders')
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=orders$/)
+  await expectTabUrl('orders')
+
   await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await expect(page.getByRole('heading', { name: 'Báo cáo kỳ' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=reports$/)
-  await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await page.goForward()
+  await expectTabUrl('reports')
+  await page.reload()
   await expect(page.getByRole('heading', { name: 'Báo cáo kỳ' })).toBeVisible()
+  await expectTabUrl('reports')
+
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
+  await expect(page.getByRole('heading', { name: 'Trả Góp' })).toBeVisible()
+  await expectTabUrl('installments')
+
+  await page.getByRole('button', { name: 'Tài Khoản' }).click()
+  await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toBeVisible()
+  await expectTabUrl('accounts')
+
+  await page.getByRole('button', { name: 'Thanh Toán', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+
+  await page.getByRole('button', { name: 'ShopeeLin' }).click()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+  await expectTabUrl()
+
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toBeVisible()
+  await expectTabUrl('accounts')
+  await page.goForward()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+  await page.goForward()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+  await expectTabUrl()
+})
+
+test('Viewer cannot open either Admin-only tab through a crafted URL', async ({ page }) => {
+  const authCallbackHash = '#type=recovery&state=qa-test-state'
+  await mockSupabase(page, 'viewer')
+  await page.goto(`/?campaign=qa&tab=accounts${authCallbackHash}`)
+  await signIn(page, 'viewer')
+
+  const expectSafeOverview = async () => {
+    await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+    await expect(page.getByRole('button', { name: 'Tài Khoản', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Thanh Toán', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toHaveCount(0)
+    await expect(page).toHaveURL((url) =>
+      url.pathname === '/'
+      && url.searchParams.get('campaign') === 'qa'
+      && !url.searchParams.has('tab')
+      && url.hash === authCallbackHash,
+    )
+  }
+  await expectSafeOverview()
+
+  await page.goto(`/?campaign=qa&tab=payment-settings${authCallbackHash}`)
+  await expectSafeOverview()
 })
 
 test('Multi-product descriptions split into item rows only when every chunk validates', async ({ page }) => {
