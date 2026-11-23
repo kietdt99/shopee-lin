@@ -29,7 +29,7 @@ type MockClosing = { billing_cycle_id: string; opening_balance: number; purchase
 type MockLedgerEntry = { id: string; billing_cycle_id: string; entry_date: string; kind: string; amount: number; description: string }
 type MockInstallmentSummary = { id: string; name: string; total_amount: number; total_paid: number }
 type MockInstallmentPayment = { id: string; plan_id: string; paid_at: string; amount: number; note: string | null }
-type MockPaymentSettings = { singleton: true; note: string; qr_image_path: string | null; updated_at: string; updated_by: string | null }
+type MockPaymentSettings = { singleton: true; note: string; qr_image_path: string | null; installment_qr_image_path?: string | null; updated_at: string; updated_by: string | null }
 type MockSeed = {
   orders?: MockOrder[]
   cycles?: MockCycle[]
@@ -96,6 +96,7 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
       singleton: true,
       note: 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘',
       qr_image_path: null,
+      installment_qr_image_path: null,
       updated_at: '2026-11-22T00:00:00.000Z',
       updated_by: userIds.admin,
     },
@@ -265,6 +266,17 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
         ...state.paymentSettings,
         note: body.p_note,
         qr_image_path: body.p_qr_image_path,
+        updated_at: new Date().toISOString(),
+        updated_by: userId,
+      }
+      await route.fulfill({ status: 204 })
+      return
+    }
+
+    if (url.pathname === '/rest/v1/rpc/update_installment_payment_settings' && method === 'POST') {
+      state.paymentSettings = {
+        ...state.paymentSettings,
+        installment_qr_image_path: body.p_qr_image_path,
         updated_at: new Date().toISOString(),
         updated_by: userId,
       }

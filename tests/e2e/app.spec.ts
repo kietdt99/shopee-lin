@@ -355,6 +355,65 @@ test('Admin can upload a payment image and save a trimmed note that Viewer sees'
   await viewerContext.close()
 })
 
+test('Admin can only upload installment QR and save the fixed transfer details as read-only', async ({ page }) => {
+  const mock = await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Thanh Toán', exact: true }).click()
+
+  const installmentSettings = page.locator('.installment-payment-settings')
+  await expect(installmentSettings.getByText('1.800.000 ₫')).toBeVisible()
+  await expect(installmentSettings.getByText('be Lin tra gop s25u')).toBeVisible()
+  await expect(installmentSettings.locator('input')).toHaveCount(1)
+  await expect(installmentSettings.getByRole('textbox')).toHaveCount(0)
+
+  const pngDataUrl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 128
+    canvas.height = 128
+    const context = canvas.getContext('2d')!
+    context.fillStyle = '#ee4d2d'
+    context.fillRect(0, 0, 128, 128)
+    return canvas.toDataURL('image/png')
+  })
+  await installmentSettings.getByLabel('Ảnh QR Trả Góp').setInputFiles({
+    name: 'installment-payment-qr.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(pngDataUrl.split(',')[1], 'base64'),
+  })
+  await installmentSettings.getByRole('button', { name: 'Lưu QR Trả Góp' }).click()
+
+  await expect.poll(() => mock.requests.some((request) => request.path === '/rest/v1/rpc/update_installment_payment_settings')).toBe(true)
+  const update = mock.requests.find((request) => request.path === '/rest/v1/rpc/update_installment_payment_settings')
+  expect(update?.body).toEqual({ p_qr_image_path: expect.stringMatching(/^00000000-0000-4000-8000-000000000001\/[\w-]+\.png$/) })
+  expect(mock.paymentSettings.installment_qr_image_path).toBe(update?.body.p_qr_image_path)
+  expect(mock.paymentSettings.qr_image_path).toBeNull()
+  expect(mock.requests.some((request) => request.method === 'POST' && request.path.includes('/object/payment-qr/'))).toBe(true)
+})
+
+test('Viewer sees separate installment QR with fixed transfer details and phone-save guidance', async ({ page, expectNoHorizontalOverflow }) => {
+  await mockSupabase(page, 'viewer', {
+    paymentSettings: {
+      singleton: true,
+      note: 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘',
+      qr_image_path: 'admin/order-payment-qr.png',
+      installment_qr_image_path: 'admin/installment-payment-qr.png',
+      updated_at: '',
+      updated_by: null,
+    },
+  })
+  await signIn(page, 'viewer')
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
+
+  await page.getByRole('button', { name: 'Thanh Toán Trả Góp' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thanh Toán Trả Góp' })
+  await expect(dialog.getByRole('img', { name: 'Ảnh QR thanh toán trả góp' })).toHaveAttribute('src', /installment-payment-qr\.png/)
+  await expect(dialog.getByText('1.800.000 ₫')).toBeVisible()
+  await expect(dialog.getByText('be Lin tra gop s25u')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Tải ảnh QR' })).toBeVisible()
+  await expect(dialog.getByText(/lưu ảnh rồi chọn ảnh đó trong mục quét QR/)).toBeVisible()
+  await expectNoHorizontalOverflow()
+})
+
 test('Admin payment settings reject unsupported and oversized image files before upload', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin')
   await signIn(page, 'admin')
