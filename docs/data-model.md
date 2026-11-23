@@ -7,5 +7,5 @@
 - `payment_allocations`: connects one payment to one or more orders, including partial settlement support.
 - `installment_plans`: a separate financed purchase such as S25 Ultra.
 - `installment_payments`: payments made against an installment plan.
-- `payment_settings`: the current payment display configuration edited by Admin and read by authenticated users; uploaded QR revisions remain in private Storage.
+- `payment_settings`: current ordinary payment note/QR and the separate installment QR path, readable by authenticated users and writable only through Admin-guarded RPCs; uploaded QR revisions remain in private Storage. The installment transfer amount and content are fixed display constants, not database fields.
 

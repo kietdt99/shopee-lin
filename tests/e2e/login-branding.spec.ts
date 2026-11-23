@@ -11,5 +11,5 @@ test('hosted login shows ShopeeLin branding without the obsolete personal intro'
   await expect.soft(page.getByText('Đăng nhập bằng email và mật khẩu.', { exact: true })).toHaveCount(0)
 
   await expect(page.getByLabel('Email')).toBeVisible()
-  await expect(page.getByLabel('Mật Khẩu')).toBeVisible()
+  await expect(page.getByRole('textbox', { name: 'Mật Khẩu' })).toBeVisible()
 })

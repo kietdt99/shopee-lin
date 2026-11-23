@@ -1,5 +1,11 @@
 # Decisions
 
+## 2026-11-23 — Orders payment totals use applied cycle selection
+
+Show **Tổng Đã Thanh Toán** and **Tổng Chưa Thanh Toán** above the Orders list for every role. These figures follow only the applied billing-cycle filter, not staged filter selections, search text, or applied status filters. An empty applied cycle selection means all cycles; show the cycle context beside the figures, including the date range when exactly one cycle is selected.
+
+Calculate totals from active orders assigned to the selected order cycle(s). Exclude soft-deleted and cancelled orders and their allocations. **Tổng Đã Thanh Toán** is the sum of payment allocations attached to those active orders, including historical allocations on orders that still have an unpaid balance. **Tổng Chưa Thanh Toán** is the sum of `max(0, order amount - allocations)` for active orders whose status is unpaid. All calculations use whole-VND integers. These order-cycle totals are not grouped by payment receipt date and are independent of the current search/status result count.
+
 ## 2026-11-21 — Minimal payment flow
 
 The app shows a static TPBank VietQR card using the `compact` image template, which retains VietQR, NAPAS, and bank logos without repeating transfer details. Show the recipient name, bank, and account once below the QR, with the account grouped for readability. Bé Lin tells the Admin after transferring. The Admin confirms and allocates payment to orders manually. Bank APIs, transfer notifications, and receipt uploads are out of scope.
@@ -172,3 +178,7 @@ Expose payment display settings in a dedicated Admin-only **Thanh Toán** tab. A
 ## 2026-11-22 — Scan payment QR from the same phone
 
 Offer a **Tải ảnh QR** action beside the Viewer payment QR. Explain that the Viewer can save it and select it from the banking app's QR image/library picker. Keep the original full QR image; do not try to decode or modify it. If the browser cannot fetch the image for download, show a designed inline error with a second-device fallback.
+
+## 2026-11-23 — Separate QR for installment payment
+
+Keep the installment QR separate from ordinary Shopee debt payment. Admin can upload/replace the installment QR image only; the QR's displayed transfer amount (1,800,000 VND) and content (`be Lin tra gop s25u`) are fixed read-only information, not editable settings and not decoded from the image. In the Viewer installment page, show a dedicated payment action and a dialog with the complete QR, those read-only values, and the save-to-phone guidance. Reuse private `payment-qr` storage and enforce Admin writes through an authenticated Admin-only RPC.

@@ -1,7 +1,7 @@
 {
   "name": "shopee-lin",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "supabase:local:stop": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev/stop-local-supabase.ps1",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:api:local": "node scripts/qa/verify-local-api-security.mjs",
@@ -28,6 +29,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "supabase": "3.2.0",
     "typescript": "^5.6.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "vitest": "2.1.9"
   }
 }

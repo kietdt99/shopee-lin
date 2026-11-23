@@ -20,6 +20,11 @@ const mayCycle: MockCycle = { id: 'cycle-may-2026', label: '05.2026', starts_on:
 const juneCycle: MockCycle = { id: 'cycle-june-2026', label: '06.2026', starts_on: '2026-05-21', ends_on: '2026-06-20', opening_balance: 0, status: 'open' }
 const januaryCycle: MockCycle = { id: 'cycle-january-2027', label: '01.2027', starts_on: '2026-12-21', ends_on: '2027-01-20', opening_balance: 0, status: 'open' }
 
+function appRootUrl(page: Page) {
+  // Keep redirect assertions compatible with an isolated Playwright port.
+  return new URL('/', page.url()).href
+}
+
 async function expectRequiredMarkerInline(labelTitle: Locator) {
   const metrics = await labelTitle.evaluate((title) => {
     const copy = title.querySelector('.label-copy')!.getBoundingClientRect()
@@ -113,7 +118,7 @@ test('sidebar is a distinct panel with profile and version in its footer', async
   const profile = sidebar.locator('.sidebar-profile')
   const profileName = sidebar.locator('.sidebar-profile-name')
   const profileRole = sidebar.locator('.sidebar-profile-role')
-  const version = sidebar.getByText('v0.1.2')
+  const version = sidebar.getByText('v0.1.3')
   await expect(sidebar).toHaveCSS('background-color', 'rgb(255, 255, 255)')
   await expect(profile).toBeVisible()
   const profileAction = sidebar.getByRole('button', { name: 'Hồ Sơ' })
@@ -287,7 +292,7 @@ test('Viewer cannot open payment settings and sees only the QR image and saved n
   await signIn(page, 'viewer')
   await expect(page.getByRole('button', { name: 'Tài Khoản' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Thanh Toán', exact: true })).toHaveCount(0)
-  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
+  await expect(page).toHaveURL(appRootUrl(page))
   await page.getByRole('button', { name: 'Thanh toán' }).click()
   const paymentDialog = page.getByRole('dialog', { name: 'Thanh toán' })
   await expect(paymentDialog).toBeVisible()
@@ -348,6 +353,107 @@ test('Admin can upload a payment image and save a trimmed note that Viewer sees'
   await viewerPage.getByRole('button', { name: 'Thanh toán' }).click()
   await expect(viewerPage.locator('.payment-note')).toHaveText(updatedNote)
   await viewerContext.close()
+})
+
+test('Admin can only upload installment QR and save the fixed transfer details as read-only', async ({ page }) => {
+  const mock = await mockSupabase(page, 'admin')
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Thanh Toán', exact: true }).click()
+
+  const installmentSettings = page.locator('.installment-payment-settings')
+  await expect(installmentSettings.getByText('1.800.000 ₫')).toBeVisible()
+  await expect(installmentSettings.getByText('be Lin tra gop s25u')).toBeVisible()
+  await expect(installmentSettings.locator('input')).toHaveCount(1)
+  await expect(installmentSettings.getByRole('textbox')).toHaveCount(0)
+
+  const pngDataUrl = await page.evaluate(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 128
+    canvas.height = 128
+    const context = canvas.getContext('2d')!
+    context.fillStyle = '#ee4d2d'
+    context.fillRect(0, 0, 128, 128)
+    return canvas.toDataURL('image/png')
+  })
+  await installmentSettings.getByLabel('Ảnh QR Trả Góp').setInputFiles({
+    name: 'installment-payment-qr.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(pngDataUrl.split(',')[1], 'base64'),
+  })
+  await installmentSettings.getByRole('button', { name: 'Lưu QR Trả Góp' }).click()
+
+  await expect.poll(() => mock.requests.some((request) => request.path === '/rest/v1/rpc/update_installment_payment_settings')).toBe(true)
+  const update = mock.requests.find((request) => request.path === '/rest/v1/rpc/update_installment_payment_settings')
+  expect(update?.body).toEqual({ p_qr_image_path: expect.stringMatching(/^00000000-0000-4000-8000-000000000001\/[\w-]+\.png$/) })
+  expect(mock.paymentSettings.installment_qr_image_path).toBe(update?.body.p_qr_image_path)
+  expect(mock.paymentSettings.qr_image_path).toBeNull()
+  expect(mock.requests.some((request) => request.method === 'POST' && request.path.includes('/object/payment-qr/'))).toBe(true)
+})
+
+test('Viewer sees separate installment QR with fixed transfer details and phone-save guidance', async ({ page, expectNoHorizontalOverflow }) => {
+  await mockSupabase(page, 'viewer', {
+    paymentSettings: {
+      singleton: true,
+      note: 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘',
+      qr_image_path: 'admin/order-payment-qr.png',
+      installment_qr_image_path: 'admin/installment-payment-qr.png',
+      updated_at: '',
+      updated_by: null,
+    },
+  })
+  await signIn(page, 'viewer')
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
+
+  await page.getByRole('button', { name: 'Thanh Toán Trả Góp' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thanh Toán Trả Góp' })
+  await expect(dialog.getByRole('img', { name: 'Ảnh QR thanh toán trả góp' })).toHaveAttribute('src', /installment-payment-qr\.png/)
+  await expect(dialog.getByText('1.800.000 ₫')).toBeVisible()
+  await expect(dialog.getByText('be Lin tra gop s25u')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Tải ảnh QR' })).toBeVisible()
+  await expect(dialog.getByText(/lưu ảnh rồi chọn ảnh đó trong mục quét QR/)).toBeVisible()
+  await expectNoHorizontalOverflow()
+})
+
+test('direct Orders restore waits for billing cycles before mounting the default period filter', async ({ page }) => {
+  const latestCycle: MockCycle = { id: 'cycle-latest-2026', label: '11.2026', starts_on: '2026-10-21', ends_on: '2026-11-20', opening_balance: 0, status: 'open' }
+  const priorCycle: MockCycle = { id: 'cycle-prior-2026', label: '10.2026', starts_on: '2026-09-21', ends_on: '2026-10-20', opening_balance: 0, status: 'closed' }
+  await mockSupabase(page, 'viewer', {
+    cycles: [priorCycle, latestCycle],
+    orders: [
+      { id: 'order-latest-cycle', description: 'Order in latest cycle', placed_at: '2026-11-10', amount: 1000, status: 'unpaid', billing_cycle_id: latestCycle.id },
+      { id: 'order-prior-cycle', description: 'Order in prior cycle', placed_at: '2026-10-10', amount: 2000, status: 'unpaid', billing_cycle_id: priorCycle.id },
+    ],
+    responseDelays: { billing_cycles: 700 },
+  })
+  await signIn(page, 'viewer')
+  await page.goto('/?tab=orders')
+
+  await expect(page.getByRole('status', { name: 'Đang tải ShopeeLin' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Đơn Hàng' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
+  await expect(page.getByText('Order in latest cycle')).toBeVisible()
+  await expect(page.getByText('Order in prior cycle')).toHaveCount(0)
+  await expect(page.locator('.cycle-filter-select > summary')).toContainText('11.2026')
+})
+
+test('direct Payment Settings restore waits for persisted settings before initializing editable note', async ({ page }) => {
+  const savedNote = 'Nội dung thanh toán riêng đã lưu trước đó'
+  const mock = await mockSupabase(page, 'admin', {
+    paymentSettings: { singleton: true, note: savedNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null },
+    responseDelays: { payment_settings: 700 },
+  })
+  await signIn(page, 'admin')
+  await page.goto('/?tab=payment-settings')
+
+  await expect(page.getByRole('status', { name: 'Đang tải ShopeeLin' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toHaveCount(0)
+  const noteField = page.getByLabel('Ghi Chú Thanh Toán')
+  await expect(noteField).toHaveValue(savedNote)
+  await page.getByRole('button', { name: 'Lưu Thay Đổi' }).click()
+  await expect.poll(() => mock.requests.some((request) => request.path === '/rest/v1/rpc/update_payment_settings')).toBe(true)
+  const update = mock.requests.find((request) => request.path === '/rest/v1/rpc/update_payment_settings')
+  expect(update?.body.p_note).toBe(savedNote)
 })
 
 test('Admin payment settings reject unsupported and oversized image files before upload', async ({ page }) => {
@@ -710,7 +816,7 @@ test('successful password setup removes the redirect marker from the URL', async
   await page.getByRole('button', { name: 'Lưu Mật Khẩu' }).click()
 
   await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toBeVisible()
-  await expect(page).toHaveURL((url) => url.pathname === '/' && url.search === '' && url.hash === '')
+  await expect(page).toHaveURL(appRootUrl(page))
 })
 
 test('Admin creates and edits orders on the 20th/21st cycle boundary', async ({ page }) => {
@@ -896,6 +1002,47 @@ test('filter and order dialog can be used immediately without waiting for motion
   await expect(dialog).toBeVisible()
   await dialog.getByLabel('Mô Tả Đơn Hàng').fill('Created without waiting for motion')
   await expect(dialog.getByLabel('Mô Tả Đơn Hàng')).toHaveValue('Created without waiting for motion')
+})
+
+test('reducing motion keeps an open filter and its content usable, then saves from the order dialog', async ({ page }) => {
+  await mockSupabase(page, 'admin', {
+    cycles: [mayCycle],
+    orders: [{ id: 'motion-toggle-order', description: 'Existing motion toggle order', placed_at: '2026-05-04', amount: 1000, status: 'unpaid', billing_cycle_id: mayCycle.id }],
+  })
+  await signIn(page, 'admin')
+  await page.getByRole('button', { name: 'Đơn Hàng' }).click()
+  await page.emulateMedia({ reducedMotion: 'no-preference' })
+
+  const cycleMenu = page.locator('.cycle-filter-select .filter-select-menu')
+  await page.locator('.cycle-filter-select > summary').click()
+  await expect(cycleMenu).toBeVisible()
+  await expect(cycleMenu.getByRole('group', { name: 'Kỳ Sổ' })).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' })).toBeVisible()
+
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await expect(cycleMenu).toBeVisible()
+  await expect(page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' })).toBeVisible()
+  const menuDurations = await cycleMenu.evaluate((element) => ({
+    animation: getComputedStyle(element).animationDuration,
+    transition: getComputedStyle(element).transitionDuration,
+  }))
+  expect(parseFloat(menuDurations.animation)).toBeLessThanOrEqual(0.00002)
+  expect(parseFloat(menuDurations.transition)).toBeLessThanOrEqual(0.00002)
+
+  await page.getByRole('checkbox', { name: 'Chọn Tất Cả Kỳ' }).uncheck()
+  await page.getByLabel('05.2026 (21/04/2026 – 20/05/2026)').check()
+  await page.getByRole('button', { name: 'Áp Dụng Bộ Lọc' }).click()
+  await expect(page.locator('.order-row')).toContainText('Existing motion toggle order')
+
+  await page.getByRole('button', { name: 'Thêm Đơn Hàng' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Thêm Đơn Hàng' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByLabel('Mô Tả Đơn Hàng')).toBeVisible()
+  await dialog.getByLabel('Mô Tả Đơn Hàng').fill('Saved with reduced motion')
+  await dialog.getByLabel('Ngày Đặt').fill('2026-05-05')
+  await dialog.getByLabel('Số Tiền (VND)').fill('2500')
+  await dialog.getByRole('button', { name: 'Lưu Đơn Hàng' }).click()
+  await expect(page.locator('.order-row').filter({ hasText: 'Saved with reduced motion' })).toBeVisible()
 })
 
 test('cycle and status filter popovers stay clear of the toolbar and inside narrow viewports', async ({ page, expectNoHorizontalOverflow }) => {
@@ -1113,23 +1260,86 @@ test('Order sorting covers date, amount, cycle, and status without making descri
   await expect.poll(names).toEqual(['Zebra unpaid', 'Beta unpaid', 'Alpha paid', 'Cancelled order', 'Deleted order'])
 })
 
-test('Selected tab survives refresh and browser Back/Forward while preserving unrelated query state', async ({ page }) => {
+test('All tabs survive refresh and browser Back/Forward while preserving query and auth hash state', async ({ page }) => {
+  const authCallbackHash = '#type=recovery&state=qa-test-state'
   await mockSupabase(page, 'admin')
-  await page.goto('/?campaign=qa&tab=orders')
+  await page.goto(`/?campaign=qa&tab=orders${authCallbackHash}`)
   await signIn(page, 'admin')
   await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=orders$/)
+  const expectTabUrl = async (tab?: string) => {
+    await expect(page).toHaveURL((url) =>
+      url.pathname === '/'
+      && url.searchParams.get('campaign') === 'qa'
+      && url.searchParams.get('tab') === (tab ?? null)
+      && url.hash === authCallbackHash,
+    )
+  }
+  await expectTabUrl('orders')
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=orders$/)
+  await expectTabUrl('orders')
+
   await page.getByRole('button', { name: 'Báo Cáo' }).click()
   await expect(page.getByRole('heading', { name: 'Báo cáo kỳ' })).toBeVisible()
-  await expect(page).toHaveURL(/\?campaign=qa&tab=reports$/)
-  await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Đơn Hàng' })).toBeVisible()
-  await page.goForward()
+  await expectTabUrl('reports')
+  await page.reload()
   await expect(page.getByRole('heading', { name: 'Báo cáo kỳ' })).toBeVisible()
+  await expectTabUrl('reports')
+
+  await page.getByRole('button', { name: 'Trả Góp' }).click()
+  await expect(page.getByRole('heading', { name: 'Trả Góp' })).toBeVisible()
+  await expectTabUrl('installments')
+
+  await page.getByRole('button', { name: 'Tài Khoản' }).click()
+  await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toBeVisible()
+  await expectTabUrl('accounts')
+
+  await page.getByRole('button', { name: 'Thanh Toán', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+
+  await page.getByRole('button', { name: 'ShopeeLin' }).click()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+  await expectTabUrl()
+
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toBeVisible()
+  await expectTabUrl('accounts')
+  await page.goForward()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toBeVisible()
+  await expectTabUrl('payment-settings')
+  await page.goForward()
+  await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+  await expectTabUrl()
+})
+
+test('Viewer cannot open either Admin-only tab through a crafted URL', async ({ page }) => {
+  const authCallbackHash = '#type=recovery&state=qa-test-state'
+  await mockSupabase(page, 'viewer')
+  await page.goto(`/?campaign=qa&tab=accounts${authCallbackHash}`)
+  await signIn(page, 'viewer')
+
+  const expectSafeOverview = async () => {
+    await expect(page.getByRole('button', { name: 'Tổng Quan', exact: true })).toHaveClass(/active/)
+    await expect(page.getByRole('button', { name: 'Tài Khoản', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Thanh Toán', exact: true })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Quản Lý Tài Khoản' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toHaveCount(0)
+    await expect(page).toHaveURL((url) =>
+      url.pathname === '/'
+      && url.searchParams.get('campaign') === 'qa'
+      && !url.searchParams.has('tab')
+      && url.hash === authCallbackHash,
+    )
+  }
+  await expectSafeOverview()
+
+  await page.goto(`/?campaign=qa&tab=payment-settings${authCallbackHash}`)
+  await expectSafeOverview()
 })
 
 test('Multi-product descriptions split into item rows only when every chunk validates', async ({ page }) => {

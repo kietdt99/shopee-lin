@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, CheckCircle2, ChevronDown, CircleX, CreditCard, Download, Eye, EyeOff, LogOut, Package, Plus, QrCode, ReceiptText, RotateCcw, Search, Pencil, Trash2, Users, X } from 'lucide-react'
 import { formatDate, formatVnd } from './lib/format'
+import { billingCycleLabel, billingCycleRange } from './lib/billingCycle'
+import { summarizeOrderPaymentsByCycle, type OrderPaymentAllocation } from './lib/orderCycleSummary'
+import { orderFilterStatus, sortOrders, type OrderFilterStatus, type OrderSortDirection, type OrderSortKey } from './lib/orderSort'
+import { parseVndInput } from './lib/vnd'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { ProfileAvatar } from './ProfileAvatar'
 import defaultAvatar from './avatar-default.svg'
@@ -30,6 +34,8 @@ const fallbackPaymentQrUrl = payeeName && payeeAccount
   ? `https://img.vietqr.io/image/${payeeBank}-${payeeAccount}-compact.png?accountName=${encodeURIComponent(payeeName)}`
   : ''
 const defaultPaymentNote = 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘'
+const installmentTransferAmount = 1_800_000
+const installmentTransferContent = 'be Lin tra gop s25u'
 const localSupabaseUrl = (() => {
   if (!import.meta.env.DEV || import.meta.env.VITE_LOCAL_LOGIN_SHORTCUTS !== 'true' || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return false
   try {
@@ -47,29 +53,11 @@ const localLoginAccounts = localSupabaseUrl
   : []
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
-const cycleLabel = (value: string) => {
-  const [year, month, day] = value.split('-').map(Number)
-  const next = new Date(Date.UTC(year, month - 1 + (day >= 21 ? 1 : 0), 1))
-  return `${String(next.getUTCMonth() + 1).padStart(2, '0')}.${next.getUTCFullYear()}`
-}
-const cycleRange = (label: string) => {
-  const [month, year] = label.split('.').map(Number)
-  const start = new Date(Date.UTC(year, month - 2, 21))
-  const end = new Date(Date.UTC(year, month - 1, 20))
-  const iso = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
-  return { starts_on: iso(start), ends_on: iso(end) }
-}
 const cycleDisplay = (cycle: { label: string; starts_on: string; ends_on: string }) => `${cycle.label} (${formatDate(cycle.starts_on)} – ${formatDate(cycle.ends_on)})`
 function cycleFilterSummary(selection: string[] | null, cycles: { id: string; label: string }[]) {
   if (selection === null || selection.length === 0) return 'Tất Cả'
   if (selection.length === 1) return cycles.find((cycle) => cycle.id === selection[0])?.label ?? '1 mục'
   return `${selection.length} mục`
-}
-const parseVndInput = (value: string) => {
-  const trimmed = value.trim()
-  if (!/^(?:\d+|\d{1,3}(?:[.,]\d{3})+)$/.test(trimmed)) return null
-  const parsed = Number(trimmed.replace(/[.,]/g, ''))
-  return Number.isSafeInteger(parsed) ? parsed : null
 }
 const validShopeeOrderUrl = (value: string | null | undefined) => {
   if (!value) return null
@@ -88,19 +76,24 @@ export default function App() {
   const [message, setMessage] = useState(() => new URLSearchParams(window.location.search).get('error_code') === 'otp_expired'
     ? 'Liên kết khôi phục đã hết hạn. Nhắn bé Kịt tạo liên kết mới nhé.'
     : '')
-  const [passwordSetup, setPasswordSetup] = useState(() => new URLSearchParams(window.location.search).has('set-password'))
+  const [passwordSetup, setPasswordSetup] = useState(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    const expiredAuthLink = searchParams.get('error_code') === 'otp_expired'
+    return searchParams.get('set-password') === '1' && !expiredAuthLink
+  })
   const [loading, setLoading] = useState(true)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ singleton: true, note: defaultPaymentNote, qr_image_path: null, updated_at: '', updated_by: null })
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ singleton: true, note: defaultPaymentNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null })
   const [paymentQrUrl, setPaymentQrUrl] = useState(fallbackPaymentQrUrl)
+  const [installmentPaymentQrUrl, setInstallmentPaymentQrUrl] = useState('')
   const [plans, setPlans] = useState<InstallmentPlan[]>([])
   const [tab, setTab] = useState<Tab>(() => tabFromUrl(new URL(window.location.href)))
   const [showPayCard, setShowPayCard] = useState(false)
   const [showDisplayName, setShowDisplayName] = useState(false)
   const [cycles, setCycles] = useState<any[]>([])
-  const [allocations, setAllocations] = useState<any[]>([])
+  const [allocations, setAllocations] = useState<OrderPaymentAllocation[]>([])
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([])
   const [closings, setClosings] = useState<any[]>([])
   const [reportCycle, setReportCycle] = useState('')
@@ -154,14 +147,15 @@ export default function App() {
     const user = sessionData.session?.user
     if (!user) {
       setProfile(null)
-      setPaymentSettings({ singleton: true, note: defaultPaymentNote, qr_image_path: null, updated_at: '', updated_by: null })
+      setPaymentSettings({ singleton: true, note: defaultPaymentNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null })
       setPaymentQrUrl(fallbackPaymentQrUrl)
+      setInstallmentPaymentQrUrl('')
       setLoading(false)
       return
     }
 
-    const [profileResult, accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult, paymentSettingsResult] = await Promise.all([
-      client.from('profiles').select('id,email,full_name,role,avatar_path').eq('id', user.id).single(),
+    const profilePromise = client.from('profiles').select('id,email,full_name,role,avatar_path').eq('id', user.id).single()
+    const dataPromise = Promise.all([
       client.from('profiles').select('id,email,full_name,role').order('role').order('full_name'),
       client.from('orders').select('id,placed_at,description,notes,shopee_order_url,amount,status,billing_cycle_id,deleted_at').order('placed_at', { ascending: false }),
       client.from('payments').select('id,paid_at,amount,note').order('paid_at', { ascending: false }),
@@ -171,50 +165,64 @@ export default function App() {
       client.from('payment_allocations').select('payment_id,order_id,amount'),
       client.from('ledger_entries').select('*'),
       client.from('cycle_closings').select('*'),
-      client.from('payment_settings').select('singleton,note,qr_image_path,updated_at,updated_by').eq('singleton', true).maybeSingle(),
+      client.from('payment_settings').select('singleton,note,qr_image_path,installment_qr_image_path,updated_at,updated_by').eq('singleton', true).maybeSingle(),
     ])
 
+    const profileResult = await profilePromise
     if (profileResult.error) {
       setMessage('Tài khoản này chưa được cấp quyền. Hãy liên hệ bé Kịt.')
       setProfile(null)
-    } else {
-      setProfile(profileResult.data as Profile)
-      const loadedPaymentSettings = (paymentSettingsResult.data as PaymentSettings | null) ?? {
-        singleton: true,
-        note: defaultPaymentNote,
-        qr_image_path: null,
-        updated_at: '',
-        updated_by: null,
-      }
-      setPaymentSettings(loadedPaymentSettings)
-      if (loadedPaymentSettings.qr_image_path) {
-        const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.qr_image_path, 60 * 60 * 24)
-        setPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
-      } else {
-        setPaymentQrUrl(fallbackPaymentQrUrl)
-      }
-      setAccounts((accountResult.data ?? []) as Profile[])
-      setOrders((orderResult.data ?? []) as Order[])
-      setPayments((paymentResult.data ?? []) as Payment[])
-      setPlans((planResult.data ?? []) as InstallmentPlan[])
-      setCycles(cycleResult.data ?? [])
-      setInstallmentPayments(installmentPaymentResult.data ?? [])
-      setAllocations(allocationResult.data ?? [])
-      setLedgerEntries(ledgerResult.data ?? [])
-      setClosings(closingResult.data ?? [])
-      setMessage('')
+      setLoading(false)
+      return
     }
+
+    setProfile(profileResult.data as Profile)
+    const [accountResult, orderResult, paymentResult, planResult, cycleResult, installmentPaymentResult, allocationResult, ledgerResult, closingResult, paymentSettingsResult] = await dataPromise
+    const loadedPaymentSettings = (paymentSettingsResult.data as PaymentSettings | null) ?? {
+      singleton: true,
+      note: defaultPaymentNote,
+      qr_image_path: null,
+      installment_qr_image_path: null,
+      updated_at: '',
+      updated_by: null,
+    }
+    setPaymentSettings(loadedPaymentSettings)
+    if (loadedPaymentSettings.qr_image_path) {
+      const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.qr_image_path, 60 * 60 * 24)
+      setPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
+    } else {
+      setPaymentQrUrl(fallbackPaymentQrUrl)
+    }
+    if (loadedPaymentSettings.installment_qr_image_path) {
+      const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.installment_qr_image_path, 60 * 60 * 24)
+      setInstallmentPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
+    } else {
+      setInstallmentPaymentQrUrl('')
+    }
+    setAccounts((accountResult.data ?? []) as Profile[])
+    setOrders((orderResult.data ?? []) as Order[])
+    setPayments((paymentResult.data ?? []) as Payment[])
+    setPlans((planResult.data ?? []) as InstallmentPlan[])
+    setCycles(cycleResult.data ?? [])
+    setInstallmentPayments(installmentPaymentResult.data ?? [])
+    setAllocations(allocationResult.data ?? [])
+    setLedgerEntries(ledgerResult.data ?? [])
+    setClosings(closingResult.data ?? [])
+    setMessage('')
     setLoading(false)
   }
 
   useEffect(() => {
+    // Older builds persisted this flag after sending an activation email. It must
+    // never be used to classify a normal SIGNED_IN event as password setup.
+    localStorage.removeItem('shopee-lin-password-setup')
     if (!client) {
       setLoading(false)
       return
     }
     void loadData()
     const { data } = client.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && localStorage.getItem('shopee-lin-password-setup') === 'true')) {
+      if (event === 'PASSWORD_RECOVERY') {
         setPasswordSetup(true)
       }
       void loadData()
@@ -225,30 +233,36 @@ export default function App() {
   const signIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!client) return
-    setMessage('Đang đăng nhập…')
+    setLoading(true)
+    setMessage('')
     const { error } = await client.auth.signInWithPassword({ email, password })
-    setMessage(error ? 'Email hoặc mật khẩu chưa đúng.' : '')
+    if (error) {
+      setLoading(false)
+      setMessage('Email hoặc mật khẩu chưa đúng.')
+    }
   }
 
   const signInAsLocal = async (account: { role: string; displayName: string; email: string }) => {
     if (!client || !localSupabaseUrl || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return
     setEmail(account.email)
     setPassword('')
-    setMessage(`Đang đăng nhập với ${account.displayName}…`)
+    setLoading(true)
+    setMessage('')
     const { error } = await client.auth.signInWithPassword({ email: account.email, password: import.meta.env.VITE_LOCAL_DEV_PASSWORD })
-    setMessage(error ? `Đăng nhập ${account.displayName} chưa thành công. Hãy khởi động lại Supabase cục bộ.` : '')
+    if (error) {
+      setLoading(false)
+      setMessage(`Đăng nhập ${account.displayName} chưa thành công. Hãy khởi động lại Supabase cục bộ.`)
+    }
   }
 
   const startPasswordSetup = async () => {
     if (!client || !email) return setMessage('Nhập email trước nhé.')
-    localStorage.setItem('shopee-lin-password-setup', 'true')
     setMessage('Đang gửi link kích hoạt…')
     const { error } = await client.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}?set-password=1`, shouldCreateUser: true },
     })
     if (error) {
-      localStorage.removeItem('shopee-lin-password-setup')
       setMessage(error.message.toLowerCase().includes('rate limit')
         ? 'Đã vượt giới hạn gửi email tạm thời. Hãy thử lại sau.'
         : 'Không gửi được liên kết kích hoạt. Hãy thử lại sau hoặc liên hệ bé Kịt.')
@@ -274,7 +288,6 @@ export default function App() {
     if (password.length < 8) return setMessage('Mật khẩu cần ít nhất 8 ký tự.')
     const { error } = await client.auth.updateUser({ password })
     if (error) return setMessage('Không thể cập nhật mật khẩu. Hãy thử lại hoặc liên hệ bé Kịt.')
-    localStorage.removeItem('shopee-lin-password-setup')
     setPasswordSetup(false)
     setPassword('')
     const currentUrl = new URL(window.location.href)
@@ -292,12 +305,14 @@ export default function App() {
   }
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />
-  if (loading) return <main className="centered"><p>Đang mở sổ nợ của Bé Lin…</p></main>
+  // Do not mount data-dependent panels until the initial profile and app data
+  // have both loaded. Several panels initialize local state from these props.
+  if (loading) return <LoadingScreen />
   if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
   if (!profile) return <Login email={email} password={password} message={message} localAccounts={localLoginAccounts} onLoginAsLocal={(account) => void signInAsLocal(account)} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
   return (
-    <main className="app-shell">
+    <main className="app-shell" aria-busy={loading}>
       <aside className="sidebar">
         <button className="brand-link" type="button" onClick={() => navigateToTab('overview')}>
           <span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span>
@@ -312,21 +327,22 @@ export default function App() {
         </nav>
         <div className="sidebar-footer">
           <SidebarProfile profile={profile} onEdit={() => setShowDisplayName(true)} onSignOut={() => void signOut()} />
-          <span className="app-version">v0.1.2</span>
+          <span className="app-version">v0.1.3</span>
         </div>
       </aside>
 
       <div className="main-area">
         {tab === 'overview' && <Overview outstanding={outstanding} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
       {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} cycles={cycles} isAdmin={isAdmin} onUpdated={loadData} />}
-        {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}
+        {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} qrImageUrl={installmentPaymentQrUrl} onUpdated={loadData} />}
         {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
         {tab === 'accounts' && isAdmin && <AccountsPanel accounts={accounts} />}
-        {tab === 'payment-settings' && isAdmin && <PaymentSettingsPanel settings={paymentSettings} currentImageUrl={paymentQrUrl} onSaved={loadData} />}
+        {tab === 'payment-settings' && isAdmin && <PaymentSettingsPanel settings={paymentSettings} currentImageUrl={paymentQrUrl} currentInstallmentImageUrl={installmentPaymentQrUrl} onSaved={loadData} />}
       </div>
 
       {showPayCard && <PaymentCard imageUrl={paymentQrUrl} note={paymentSettings.note} onClose={() => setShowPayCard(false)} />}
       {showDisplayName && <DisplayNameDialog profile={profile} onClose={() => setShowDisplayName(false)} onSaved={loadData} />}
+      {loading && <LoadingScreen />}
     </main>
   )
 }
@@ -361,11 +377,72 @@ function ConfigurationNotice() {
   return <main className="centered"><section className="auth-card"><h1>Cần cấu hình Supabase</h1><p>Thêm Project URL và Publishable key vào file <code>.env.local</code> để chạy ứng dụng.</p></section></main>
 }
 
-function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: { email: string; password: string; message: string; localAccounts: { role: string; displayName: string; email: string }[]; onLoginAsLocal: (account: { role: string; displayName: string; email: string }) => void; onEmailChange: (value: string) => void; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onSetup: () => void; onReset: () => void }) {
+function LoadingScreen() {
+  return (
+    <main className="loading-screen" role="status" aria-label="Đang tải ShopeeLin">
+      <span className="loading-spinner" aria-hidden="true"><span className="brand-mark">S</span></span>
+      <span className="loading-caption">Đang chuẩn bị ShopeeLin</span>
+    </main>
+  )
+}
+
+type LoginProps = {
+  email: string
+  password: string
+  message: string
+  localAccounts: { role: string; displayName: string; email: string }[]
+  onLoginAsLocal: (account: { role: string; displayName: string; email: string }) => void
+  onEmailChange: (value: string) => void
+  onPasswordChange: (value: string) => void
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void
+  onSetup: () => void
+  onReset: () => void
+}
+
+function Login({ email, password, message, localAccounts, onLoginAsLocal, onEmailChange, onPasswordChange, onSubmit, onSetup, onReset }: LoginProps) {
+  const [showPassword, setShowPassword] = useState(false)
+
   if (localAccounts.length > 0) {
     return <main className="centered"><section className="auth-card"><p className="eyebrow">ShopeeLin · Dùng Thử</p><h1>Chọn Tài Khoản</h1><p>Chọn một tài khoản để kiểm tra quyền và giao diện.</p><section className="local-login-picker" aria-label="Tài Khoản Dùng Thử"><div className="local-login-options">{localAccounts.map((account) => <button className="local-login-option" data-testid={`local-login-${account.role === 'Admin' ? 'admin' : 'tester'}`} key={account.email} type="button" onClick={() => onLoginAsLocal(account)}><strong>{account.role}</strong><span>{account.displayName}</span></button>)}</div><p className="local-login-hint">Chỉ kết nối Supabase cục bộ; không đăng nhập vào bản chính thức.</p></section>{message && <p className="form-message">{message}</p>}</section></main>
   }
-  return <main className="centered"><section className="auth-card"><h1 className="login-brand"><span className="brand-mark" aria-hidden="true">S</span><span>ShopeeLin</span></h1><form onSubmit={onSubmit}><label>Email<input required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" /></label><label>Mật Khẩu<input required type="password" autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} /></label><button className="primary-button" type="submit">Đăng nhập</button></form><div className="auth-links"><button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button><button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button></div>{message && <p className="form-message">{message}</p>}</section></main>
+
+  return (
+    <main className="centered">
+      <section className="auth-card">
+        <h1 className="login-brand">
+          <span className="brand-mark" aria-hidden="true">S</span>
+          <span>ShopeeLin</span>
+        </h1>
+        <form onSubmit={onSubmit}>
+          <div className="auth-field">
+            <label htmlFor="login-email">Email</label>
+            <input id="login-email" required type="email" autoComplete="username" value={email} onChange={(event) => onEmailChange(event.target.value)} placeholder="email@example.com" />
+          </div>
+          <div className="auth-field">
+            <label htmlFor="login-password">Mật Khẩu</label>
+            <div className="auth-password-input">
+              <input id="login-password" required type={showPassword ? 'text' : 'password'} autoComplete="current-password" value={password} onChange={(event) => onPasswordChange(event.target.value)} />
+              <button
+                className="password-visibility-toggle"
+                type="button"
+                aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword((visible) => !visible)}
+              >
+                {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+              </button>
+            </div>
+          </div>
+          <button className="primary-button" type="submit">Đăng nhập</button>
+        </form>
+        <div className="auth-links">
+          <button className="text-button" type="button" onClick={onSetup}>Đặt mật khẩu lần đầu</button>
+          <button className="text-button" type="button" onClick={onReset}>Quên mật khẩu?</button>
+        </div>
+        {message && <p className="form-message">{message}</p>}
+      </section>
+    </main>
+  )
 }
 
 function PasswordSetup({ email, password, message, onPasswordChange, onSubmit }: { email: string; password: string; message: string; onPasswordChange: (value: string) => void; onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
@@ -377,13 +454,18 @@ function AccountsPanel({ accounts }: { accounts: Profile[] }) {
   return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Quản Lý Tài Khoản</h2></div></div><p className="hint">Tạo liên kết dùng một lần để người dùng đặt mật khẩu mới. Liên kết không gửi email và hết hạn sau 5 phút.</p><section className="list-card">{accounts.length === 0 ? <p className="empty-state">Chưa có tài khoản nào.</p> : accounts.map((account) => <article className="account-row" key={account.id}><div className="order-details"><strong>{account.full_name}</strong><span>{account.email} · {account.role === 'admin' ? 'Admin' : 'Người Xem'}</span></div>{account.role === 'viewer' && <button className="secondary-button" onClick={() => setResetting(account)}>Đặt Lại Mật Khẩu</button>}</article>)}</section>{resetting && <RecoveryLinkDialog account={resetting} onClose={() => setResetting(null)} />}</section>
 }
 
-function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings: PaymentSettings; currentImageUrl: string; onSaved: () => Promise<void> }) {
+function PaymentSettingsPanel({ settings, currentImageUrl, currentInstallmentImageUrl, onSaved }: { settings: PaymentSettings; currentImageUrl: string; currentInstallmentImageUrl: string; onSaved: () => Promise<void> }) {
   const [note, setNote] = useState(settings.note)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [pendingUploadedPath, setPendingUploadedPath] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [installmentImageFile, setInstallmentImageFile] = useState<File | null>(null)
+  const [pendingInstallmentUploadedPath, setPendingInstallmentUploadedPath] = useState<string | null>(null)
+  const [installmentPreviewUrl, setInstallmentPreviewUrl] = useState('')
+  const [installmentError, setInstallmentError] = useState('')
+  const [installmentBusy, setInstallmentBusy] = useState(false)
 
   useEffect(() => {
     if (!imageFile) {
@@ -394,6 +476,16 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
     setPreviewUrl(objectUrl)
     return () => URL.revokeObjectURL(objectUrl)
   }, [imageFile])
+
+  useEffect(() => {
+    if (!installmentImageFile) {
+      setInstallmentPreviewUrl('')
+      return
+    }
+    const objectUrl = URL.createObjectURL(installmentImageFile)
+    setInstallmentPreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [installmentImageFile])
 
   const selectImage = async (file: File | undefined) => {
     setError('')
@@ -481,6 +573,81 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
     setBusy(false)
   }
 
+  const selectInstallmentImage = async (file: File | undefined) => {
+    setInstallmentError('')
+    setPendingInstallmentUploadedPath(null)
+    if (!file) {
+      setInstallmentImageFile(null)
+      return
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setInstallmentImageFile(null)
+      setInstallmentError('Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setInstallmentImageFile(null)
+      setInstallmentError('Ảnh QR không được vượt quá 2 MB.')
+      return
+    }
+    try {
+      const image = await createImageBitmap(file)
+      const isReadable = image.width >= 128 && image.height >= 128
+      image.close()
+      if (!isReadable) {
+        setInstallmentImageFile(null)
+        setInstallmentError('Ảnh quá nhỏ để hiển thị rõ. Hãy chọn ảnh có chiều rộng và cao tối thiểu 128 px.')
+        return
+      }
+    } catch {
+      setInstallmentImageFile(null)
+      setInstallmentError('Không đọc được ảnh này. Hãy chọn một tệp ảnh hợp lệ.')
+      return
+    }
+    setInstallmentImageFile(file)
+  }
+
+  const saveInstallmentSettings = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) return setInstallmentError('Supabase chưa được cấu hình.')
+    setInstallmentBusy(true)
+    setInstallmentError('')
+    let qrImagePath = pendingInstallmentUploadedPath ?? settings.installment_qr_image_path
+    if (installmentImageFile && !pendingInstallmentUploadedPath) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      const userId = sessionData.session?.user.id
+      if (sessionError || !userId) {
+        setInstallmentBusy(false)
+        return setInstallmentError('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.')
+      }
+      const extensionByType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+      const imagePath = `${userId}/${crypto.randomUUID()}.${extensionByType[installmentImageFile.type]}`
+      const { error: uploadError } = await supabase.storage.from('payment-qr').upload(imagePath, installmentImageFile, {
+        cacheControl: '31536000',
+        contentType: installmentImageFile.type,
+        upsert: false,
+      })
+      if (uploadError) {
+        setInstallmentBusy(false)
+        return setInstallmentError('Không tải được ảnh QR. Hãy kiểm tra quyền truy cập và thử lại.')
+      }
+      qrImagePath = imagePath
+      setPendingInstallmentUploadedPath(imagePath)
+    }
+
+    const { error: saveError } = await supabase.rpc('update_installment_payment_settings', {
+      p_qr_image_path: qrImagePath,
+    })
+    if (saveError) {
+      setInstallmentBusy(false)
+      return setInstallmentError('Không lưu được thiết lập QR trả góp. Hãy thử lại.')
+    }
+    await onSaved()
+    setInstallmentImageFile(null)
+    setPendingInstallmentUploadedPath(null)
+    setInstallmentBusy(false)
+  }
+
   return <section className="content-stack payment-settings-panel">
     <div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Thiết Lập Thanh Toán</h2></div></div>
     <section className="section-card">
@@ -491,6 +658,17 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
         <label><span className="label-title"><span className="label-copy">Ghi Chú Thanh Toán</span><span className="required-marker" aria-hidden="true">*</span></span><textarea required maxLength={300} rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></label>
         {error && <p className="form-message" role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Đang Lưu…' : 'Lưu Thay Đổi'}</button>
+      </form>
+    </section>
+    <section className="section-card installment-payment-settings">
+      <div className="section-heading"><div><p className="overview-cycle-label">Khoản riêng</p><h2>QR Thanh Toán Trả Góp</h2></div></div>
+      <form className="form-stack" onSubmit={saveInstallmentSettings}>
+        <label className="payment-image-label">Ảnh QR Trả Góp<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void selectInstallmentImage(event.target.files?.[0])} /></label>
+        <p className="hint">Ảnh này chỉ hiển thị trong tab Trả Góp cho Viewer. Ảnh được giữ nguyên như đã tải lên; hệ thống không giải mã hay xác minh nơi nhận tiền.</p>
+        {(installmentPreviewUrl || currentInstallmentImageUrl) && <img className="payment-settings-preview" src={installmentPreviewUrl || currentInstallmentImageUrl} alt="Xem trước ảnh QR thanh toán trả góp" />}
+        <div className="installment-transfer-details" aria-label="Thông tin chuyển khoản trả góp, chỉ xem"><div><span>Số tiền mặc định</span><strong>{formatVnd(installmentTransferAmount)}</strong></div><div><span>Nội dung chuyển khoản</span><strong>{installmentTransferContent}</strong></div></div>
+        {installmentError && <p className="form-message" role="alert">{installmentError}</p>}
+        <button className="primary-button" type="submit" disabled={installmentBusy}>{installmentBusy ? 'Đang Lưu…' : 'Lưu QR Trả Góp'}</button>
       </form>
     </section>
   </section>
@@ -562,62 +740,13 @@ function TabButton({ active, onClick, icon, label }: { active: boolean; onClick:
 
 function Overview({ outstanding, plans, isAdmin, onPay }: { outstanding: number; plans: InstallmentPlan[]; isAdmin: boolean; onPay: () => void }) {
   const installmentRemaining = plans.reduce((total, plan) => total + plan.total_amount - plan.total_paid, 0)
-  const currentCycle = { label: cycleLabel(today), ...cycleRange(cycleLabel(today)) }
+  const currentCycleLabel = billingCycleLabel(today)
+  const currentCycle = { label: currentCycleLabel, ...billingCycleRange(currentCycleLabel) }
   return <section className="content-stack">
     <section className="balance-card"><p>Dư nợ Shopee hiện tại</p><strong>{formatVnd(outstanding)}</strong><span>Cập nhật từ các đơn chưa thanh toán</span>{!isAdmin && <button className="light-button" onClick={onPay}><QrCode size={18} />Thanh toán</button>}</section>
     <section className="metric-grid metric-grid-single"><article className="metric"><span>Còn trả góp</span><strong>{formatVnd(installmentRemaining)}</strong></article></section>
     <section className="section-card"><div className="section-heading"><div><p className="overview-cycle-label">Kỳ Hiện Tại</p><h2>{cycleDisplay(currentCycle)}</h2></div></div><p>{isAdmin ? 'Thêm đơn hàng hoặc ghi nhận khoản Bé Lin đã trả ở tab Đơn hàng.' : 'Theo dõi các đơn chưa trả và dùng QR khi cần thanh toán.'}</p></section>
   </section>
-}
-
-type OrderFilterStatus = 'unpaid' | 'paid' | 'cancelled' | 'deleted'
-type OrderSortKey = 'date' | 'amount' | 'cycle' | 'status'
-type OrderSortDirection = 'asc' | 'desc'
-
-const orderStatusSortOrder: Record<OrderFilterStatus, number> = { unpaid: 0, paid: 1, cancelled: 2, deleted: 3 }
-
-function orderStatus(order: Order): OrderFilterStatus {
-  if (order.deleted_at) return 'deleted'
-  if (order.status === 'cancelled') return 'cancelled'
-  if (order.status === 'paid') return 'paid'
-  return 'unpaid'
-}
-
-function compareOrderValues(left: Order, right: Order, key: OrderSortKey, cycleStartById: Map<string, string>) {
-  switch (key) {
-    case 'date':
-      return left.placed_at.localeCompare(right.placed_at)
-    case 'amount':
-      return left.amount - right.amount
-    case 'cycle': {
-      const leftCycleStart = left.billing_cycle_id ? cycleStartById.get(left.billing_cycle_id) : undefined
-      const rightCycleStart = right.billing_cycle_id ? cycleStartById.get(right.billing_cycle_id) : undefined
-      if (leftCycleStart === undefined || rightCycleStart === undefined) {
-        if (leftCycleStart !== rightCycleStart) return leftCycleStart === undefined ? 1 : -1
-        return 0
-      }
-      return leftCycleStart.localeCompare(rightCycleStart)
-    }
-    case 'status':
-      return orderStatusSortOrder[orderStatus(left)] - orderStatusSortOrder[orderStatus(right)]
-  }
-}
-
-function sortOrders(orders: Order[], key: OrderSortKey | null, direction: OrderSortDirection, cycleStartById: Map<string, string>) {
-  if (key === null) return orders
-
-  const directionMultiplier = direction === 'asc' ? 1 : -1
-  return orders.map((order, index) => ({ order, index })).sort((left, right) => {
-    if (key === 'cycle') {
-      const leftHasCycleDate = left.order.billing_cycle_id !== null && cycleStartById.has(left.order.billing_cycle_id)
-      const rightHasCycleDate = right.order.billing_cycle_id !== null && cycleStartById.has(right.order.billing_cycle_id)
-      if (leftHasCycleDate !== rightHasCycleDate) return leftHasCycleDate ? -1 : 1
-    }
-
-    const comparison = compareOrderValues(left.order, right.order, key, cycleStartById)
-    if (comparison === 0) return left.index - right.index
-    return comparison * directionMultiplier
-  }).map(({ order }) => order)
 }
 
 function OrderSortIcon({ active, direction }: { active: boolean; direction: OrderSortDirection }) {
@@ -697,7 +826,7 @@ function positionOrdersFilterMenu(filter: HTMLDetailsElement) {
   menu.style.transformOrigin = 'top left'
 }
 
-function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: any[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orders: Order[]; allocations: OrderPaymentAllocation[]; cycles: { id: string; label: string; starts_on: string; ends_on: string; status?: 'open' | 'closed' }[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
   const filterControlsRef = useRef<HTMLDivElement>(null)
   const searchFormRef = useRef<HTMLFormElement>(null)
   const [pendingOrderAction, setPendingOrderAction] = useState<{ type: 'delete' | 'restore' | 'cancel'; order: Order } | null>(null)
@@ -754,7 +883,7 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
   }, [])
   const remainingFor = (order: Order) => order.amount - allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
   const allocatedFor = (order: Order) => allocations.filter((allocation) => allocation.order_id === order.id).reduce((sum, allocation) => sum + allocation.amount, 0)
-  const statusFor = orderStatus
+  const statusFor = orderFilterStatus
   const cycleIsClosed = (order: Order) => cycles.some((cycle) => cycle.id === order.billing_cycle_id && cycle.status === 'closed')
   const unpaid = orders.filter((order) => statusFor(order) === 'unpaid' && !cycleIsClosed(order))
   const selectedOrders = unpaid.filter((order) => selected.includes(order.id))
@@ -771,6 +900,18 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
     const matchesStatus = !appliedStatuses?.length || appliedStatuses.includes(statusFor(order))
     return matchesSearch && matchesCycle && matchesStatus
   })
+  const cyclePaymentSummary = useMemo(
+    () => summarizeOrderPaymentsByCycle(orders, allocations, appliedCycles),
+    [orders, allocations, appliedCycles],
+  )
+  const selectedAppliedCycle = appliedCycles?.length === 1
+    ? cycles.find((cycle) => cycle.id === appliedCycles[0])
+    : undefined
+  const appliedCycleContext = !appliedCycles?.length
+    ? 'Tất cả kỳ'
+    : selectedAppliedCycle
+      ? cycleDisplay(selectedAppliedCycle)
+      : `${appliedCycles.length} kỳ đã chọn`
   const cycleStartById = new Map(cycles.map((cycle) => [cycle.id, cycle.starts_on]))
   const sortedOrders = sortOrders(filteredOrders, sortKey, sortDirection, cycleStartById)
   const searchSuggestions = useMemo(() => {
@@ -908,6 +1049,23 @@ function OrdersPanel({ orders, allocations, cycles, isAdmin, onUpdated }: { orde
       </div>
       {isAdmin && <button className="primary-button compact orders-add-button" onClick={() => setShowNew(true)}><Plus size={18} />Thêm Đơn Hàng</button>}
     </section>
+    <section className="cycle-payment-summary" aria-label="Tổng thanh toán theo kỳ">
+      <div className="cycle-payment-summary-context">
+        <span>Tổng theo kỳ áp dụng</span>
+        <strong>{appliedCycleContext}</strong>
+        <small>Tính độc lập với nội dung tìm kiếm và trạng thái đang hiển thị.</small>
+      </div>
+      <div className="cycle-payment-summary-metrics">
+        <article className="cycle-payment-metric">
+          <span>Tổng Đã Thanh Toán</span>
+          <strong>{formatVnd(cyclePaymentSummary.paidAmount)}</strong>
+        </article>
+        <article className="cycle-payment-metric">
+          <span>Tổng Chưa Thanh Toán</span>
+          <strong>{formatVnd(cyclePaymentSummary.unpaidAmount)}</strong>
+        </article>
+      </div>
+    </section>
     {isAdmin && selectedOrders.length > 0 && <section className="selection-bar"><span>Chọn {selectedOrders.length} Đơn · tổng {formatVnd(selectedAmount)}</span><button className="primary-button compact" disabled={busy} onClick={() => setShowPaymentConfirm(true)}><CheckCircle2 size={17} />Ghi Nhận Đã Thanh Toán</button></section>}
     <section className="list-card orders-list">
       {orders.length === 0 ? <p className="empty-state">Chưa Có Đơn Hàng.</p> : filteredOrders.length === 0 ? <p className="empty-state">Không Tìm Thấy Đơn Hàng Phù Hợp.</p> : <div className="orders-table-scroll"><table className="orders-table">
@@ -971,10 +1129,11 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     const enteredShopeeOrderUrl = shopeeOrderUrl.trim()
     const normalizedShopeeOrderUrl = validShopeeOrderUrl(enteredShopeeOrderUrl)
     if (enteredShopeeOrderUrl && !normalizedShopeeOrderUrl) return setError('Nhập link đơn hàng Shopee hợp lệ, ví dụ https://shopee.vn/user/purchase/order/248511385254562?type=3.')
-    const cycle = await supabase.from('billing_cycles').select('id,status').eq('label', cycleLabel(placedAt)).maybeSingle()
+    const cycleLabel = billingCycleLabel(placedAt)
+    const cycle = await supabase.from('billing_cycles').select('id,status').eq('label', cycleLabel).maybeSingle()
     if (cycle.data?.status === 'closed') return setError('Kỳ này đã khóa sổ, không thể thêm hoặc sửa đơn.')
-    const range = cycleRange(cycleLabel(placedAt))
-    const cycleId = cycle.data?.id ?? (await supabase.from('billing_cycles').insert({ label: cycleLabel(placedAt), ...range }).select('id').single()).data?.id
+    const range = billingCycleRange(cycleLabel)
+    const cycleId = cycle.data?.id ?? (await supabase.from('billing_cycles').insert({ label: cycleLabel, ...range }).select('id').single()).data?.id
     const result = order
       ? await supabase.rpc('update_order', { p_order_id: order.id, p_placed_at: placedAt, p_description: normalizedDescription, p_amount: vnd, p_billing_cycle_id: cycleId, p_notes: order.notes ?? null, p_shopee_order_url: normalizedShopeeOrderUrl })
       : await supabase.from('orders').insert({ description: normalizedDescription, shopee_order_url: normalizedShopeeOrderUrl, amount: vnd, placed_at: placedAt, billing_cycle_id: cycleId })
@@ -989,9 +1148,10 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     <p className="required-note"><span aria-hidden="true">*</span> Trường bắt buộc</p>{lockFinancialFields && <p className="hint">Đơn đã có phân bổ thanh toán nên ngày đặt và số tiền được khóa để giữ đúng lịch sử.</p>}{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit">Lưu Đơn Hàng</button></form></Dialog>
 }
 
-function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPlan[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+function InstallmentsPanel({ plans, isAdmin, qrImageUrl, onUpdated }: { plans: InstallmentPlan[]; isAdmin: boolean; qrImageUrl: string; onUpdated: () => Promise<void> }) {
   const [showCreate, setShowCreate] = useState(false)
   const [showPayment, setShowPayment] = useState<string | null>(null)
+  const [showPaymentQr, setShowPaymentQr] = useState(false)
   const [payments, setPayments] = useState<any[]>([])
   const [formError, setFormError] = useState('')
   useEffect(() => { void supabase?.from('installment_payments').select('*').order('paid_at',{ascending:false}).then(({data})=>setPayments(data??[])) }, [plans])
@@ -1007,9 +1167,10 @@ function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPl
     if(amount>remaining)return setFormError(`Số tiền góp vượt quá số còn lại ${formatVnd(remaining)}.`)
     const {error}=await supabase.rpc('record_installment_payment',{p_plan_id:showPayment,p_amount:amount,p_paid_at:paid_at,p_note:note||null}); if(error)setFormError('Không thể ghi nhận lần góp. Hãy kiểm tra số tiền và số dư còn lại.'); else{setShowPayment(null);setFormError('');await onUpdated()}
   }
-  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Khoản riêng</p><h2>Trả Góp</h2></div>{isAdmin&&<button className="primary-button compact" onClick={()=>setShowCreate(true)}><Plus size={18}/>Tạo Khoản Trả Góp</button>}</div><section className="list-card">{plans.length === 0 ? <p className="empty-state">Chưa có khoản trả góp.</p> : plans.map((plan) => { const remaining = plan.total_amount - plan.total_paid; const progress = Math.min(100, Math.round((plan.total_paid / plan.total_amount) * 100)); return <article className="installment-block" key={plan.id}><div className="installment-row"><div><strong>{plan.name}</strong><span>Đã góp {formatVnd(plan.total_paid)} / {formatVnd(plan.total_amount)}</span><div className="progress"><i style={{ width: `${progress}%` }} /></div></div><strong>{formatVnd(remaining)}<small>còn lại</small></strong></div>{isAdmin&&<button className="secondary-button" onClick={()=>setShowPayment(plan.id)}>Ghi Nhận Lần Góp</button>}<div className="payment-history">{payments.filter(p=>p.plan_id===plan.id).map(p=><div key={p.id}><span>{formatDate(p.paid_at)} · {p.note||'Đã góp'}</span><strong>{formatVnd(p.amount)}</strong></div>)}</div></article>})}</section>
+  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Khoản riêng</p><h2>Trả Góp</h2></div><div className="installment-page-actions">{!isAdmin && plans.length > 0 && <button className="primary-button compact" type="button" onClick={() => setShowPaymentQr(true)}><QrCode size={17} aria-hidden="true" />Thanh Toán Trả Góp</button>}{isAdmin&&<button className="primary-button compact" onClick={()=>setShowCreate(true)}><Plus size={18}/>Tạo Khoản Trả Góp</button>}</div></div><section className="list-card">{plans.length === 0 ? <p className="empty-state">Chưa có khoản trả góp.</p> : plans.map((plan) => { const remaining = plan.total_amount - plan.total_paid; const progress = Math.min(100, Math.round((plan.total_paid / plan.total_amount) * 100)); return <article className="installment-block" key={plan.id}><div className="installment-row"><div><strong>{plan.name}</strong><span>Đã góp {formatVnd(plan.total_paid)} / {formatVnd(plan.total_amount)}</span><div className="progress"><i style={{ width: `${progress}%` }} /></div></div><strong>{formatVnd(remaining)}<small>còn lại</small></strong></div>{isAdmin&&<button className="secondary-button" onClick={()=>setShowPayment(plan.id)}>Ghi Nhận Lần Góp</button>}<div className="payment-history">{payments.filter(p=>p.plan_id===plan.id).map(p=><div key={p.id}><span>{formatDate(p.paid_at)} · {p.note||'Đã góp'}</span><strong>{formatVnd(p.amount)}</strong></div>)}</div></article>})}</section>
     {showCreate&&<Dialog title="Tạo Khoản Trả Góp" onClose={()=>{setShowCreate(false);setFormError('')}}><form className="form-stack" onSubmit={addPlan}><label>Tên Khoản<input required name="name"/></label><label>Tổng Tiền (VND)<input required name="amount" inputMode="numeric"/></label>{formError&&<p className="form-message" role="alert">{formError}</p>}<button className="primary-button">Tạo Khoản Trả Góp</button></form></Dialog>}
     {showPayment&&<Dialog title="Ghi Nhận Lần Góp" onClose={()=>{setShowPayment(null);setFormError('')}}><form className="form-stack" onSubmit={addPayment}><label>Ngày Góp<input required type="date" name="paid_at" defaultValue={today}/></label><label>Số Tiền (VND)<input required name="amount" inputMode="numeric"/></label><label>Ghi Chú<input name="note"/></label>{formError&&<p className="form-message" role="alert">{formError}</p>}<button className="primary-button">Lưu Lần Góp</button></form></Dialog>}
+    {showPaymentQr&&<PaymentCard imageUrl={qrImageUrl} note="Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘" transferAmount={installmentTransferAmount} transferContent={installmentTransferContent} title="Thanh Toán Trả Góp" onClose={()=>setShowPaymentQr(false)} />}
   </section>
 }
 
@@ -1034,7 +1195,7 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
   return <><section className="content-stack report-panel"><div className="page-heading"><div><p className="eyebrow">Đối soát</p><h2>Báo cáo kỳ</h2></div><div className="report-actions"><button className="secondary-button" onClick={exportCsv}>Xuất Excel</button><button className="secondary-button" onClick={pdf}>Lưu PDF</button></div></div>{cycles.length===0?<section className="list-card empty-state">Chưa có kỳ sổ nào.</section>:<><label>Kỳ sổ<select value={cycle?.id??''} onChange={e=>onSelect(e.target.value)}>{cycles.map(c=><option key={c.id} value={c.id}>{cycleDisplay(c)} · {c.status==='closed'?'Đã khóa':'Đang mở'}</option>)}</select></label><section className="metric-grid"><article className="metric"><span>Dư đầu kỳ</span><strong>{formatVnd(opening)}</strong></article><article className="metric"><span>Đơn phát sinh</span><strong>{formatVnd(purchases)}</strong></article><article className="metric"><span>Đã thanh toán trong kỳ</span><strong>{formatVnd(paid)}</strong></article><article className="metric"><span>Còn lại theo kỳ</span><strong>{formatVnd(ending)}</strong></article></section><section className="list-card report-orders">{cycleOrders.length?cycleOrders.map(o=><div className={`report-line ${o.deleted_at?'is-deleted':''}`} key={o.id}><span>{formatDate(o.placed_at)} · {o.description}{o.deleted_at?' · Đã Xóa':''}</span><strong>{formatVnd(o.amount)}</strong></div>):<p className="empty-state">Kỳ này chưa có đơn hàng.</p>}{isAdmin&&<button className="primary-button compact" onClick={()=>void toggleClose()}>{cycle.status==='closed'?'Mở khóa kỳ':'Khóa sổ kỳ này'}</button>}{cycle.status==='closed'&&<p className="hint">Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.</p>}</section></>}</section>{notice&&<NoticeDialog message={notice} onClose={()=>setNotice('')}/>}</>
 }
 
-function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: string; onClose: () => void }) {
+function PaymentCard({ imageUrl, note, transferAmount, transferContent, title = 'Thanh toán', onClose }: { imageUrl: string; note: string; transferAmount?: number; transferContent?: string; title?: string; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
 
@@ -1062,9 +1223,10 @@ function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: stri
     }
   }
 
-  return <Dialog title="Thanh toán" onClose={onClose}>
+  return <Dialog title={title} onClose={onClose}>
     <div className="payment-card">
-      {imageUrl ? <img src={imageUrl} alt="Ảnh QR thanh toán" /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {imageUrl ? <img src={imageUrl} alt={transferAmount !== undefined ? 'Ảnh QR thanh toán trả góp' : 'Ảnh QR thanh toán'} /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {transferAmount !== undefined && <div className="installment-transfer-details" aria-label="Thông tin chuyển khoản, chỉ xem"><div><span>Số tiền</span><strong>{formatVnd(transferAmount)}</strong></div><div><span>Nội dung chuyển khoản</span><strong>{transferContent}</strong></div></div>}
       {imageUrl && <div className="payment-qr-actions"><button className="secondary-button" type="button" onClick={() => void downloadQr()} disabled={downloading}><Download size={17} aria-hidden="true" />{downloading ? 'Đang tải ảnh QR…' : 'Tải ảnh QR'}</button><p>Trên điện thoại, lưu ảnh rồi chọn ảnh đó trong mục quét QR của ứng dụng ngân hàng.</p></div>}
       {downloadError && <p className="form-message" role="alert">{downloadError} <a href={imageUrl} target="_blank" rel="noopener noreferrer">Mở ảnh QR trong tab mới</a></p>}
       <p className="payment-note">{note}</p>
