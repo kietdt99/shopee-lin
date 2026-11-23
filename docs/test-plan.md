@@ -197,16 +197,16 @@ The local API check above is evidence for the named local operations only. Produ
 - [ ] Complete manual checks above on local Supabase-backed UI at mobile and desktop widths; record failures and retest fixes.
 - [x] Run the documented production build and ensure it succeeds. Do not release with unresolved TypeScript/build errors. (Verified locally 2026-11-22; rerun on the integrated branch before release.)
 - [x] Verify GitHub Pages deployment serves the production login shell (HTTP 200) at 390px and 1440px with no horizontal overflow. Confirm the production bundle contains the expected Supabase URL/publishable key and TPBank payee settings.
-- [ ] Verify live Viewer API/RPC write denial and real Admin/Bé Lin Auth and recovery flows; smoke-test the authenticated production QR, reports, balances, and role visibility before creating tag `v0.1.0`. The Viewer session and Bé Lin's one-time activation are still pending.
-- [ ] Reconcile Supabase migration history before the next CLI-managed database migration. Runtime schema and ACL changes are applied and verified, but the project has no migration-history table; do not run `db push` against the current date-only migrations.
+- [ ] Verify live Viewer API/RPC write denial and real Admin/Bé Lin Auth and recovery flows; smoke-test the authenticated production QR, reports, balances, and role visibility before releasing v0.1.3. The Viewer session and Bé Lin's activation/recovery flow are still pending.
+- [x] Read-only Supabase MCP check confirmed all 11 checked-in migration versions are recorded in the hosted migration history. Read-only catalog inspection confirmed RLS is enabled on all 10 public application tables and captured current policies/function ACL metadata. v0.1.3 contains no database migration; do not run `db push` as part of this release. Detailed live financial/concurrency behavior and authenticated write-denial checks remain separate open gates.
 - [ ] Merge feature branches into `main`; cut `release/vX.Y.Z` from the reviewed `main` commit. Do not add features to a release branch.
-- [ ] Deploy only from the immutable release branch, smoke-test the production login, role visibility, debt totals, QR, reports, and a safe recovery flow, then tag the release.
+- [ ] Deploy only from the immutable `release/v0.1.3` branch, smoke-test the production login, role visibility, debt totals, QR, reports, and a safe recovery flow, then tag the release.
 - [ ] Ensure no `.env*` secrets, Supabase secret keys, credentials, or personal payment evidence are included in the release.
 
 ## Known coverage gaps
 
 - The historical Excel workbook is a one-time import source and is not part of routine app-entry QA.
-- No bank API, transfer webhook, receipt upload, or automatic payment verification exists in v0.1.0.
+- No bank API, transfer webhook, receipt upload, or automatic payment verification exists in the current version.
 - Automated cross-browser coverage is limited to Chrome and Edge and their emulated mobile viewports; physical device scaling, browser UI/OS behavior, runtime load under large datasets, and multi-user load remain manual.
 - Axe audits automated WCAG rules but does not cover screen-reader usability, all keyboard flows, or every WCAG criterion.
 - Admin-generated recovery is for provisioned Viewer accounts. First-time provisioning still uses the allowlisted email activation flow.
