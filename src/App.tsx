@@ -34,6 +34,8 @@ const fallbackPaymentQrUrl = payeeName && payeeAccount
   ? `https://img.vietqr.io/image/${payeeBank}-${payeeAccount}-compact.png?accountName=${encodeURIComponent(payeeName)}`
   : ''
 const defaultPaymentNote = 'Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘'
+const installmentTransferAmount = 1_800_000
+const installmentTransferContent = 'be Lin tra gop s25u'
 const localSupabaseUrl = (() => {
   if (!import.meta.env.DEV || import.meta.env.VITE_LOCAL_LOGIN_SHORTCUTS !== 'true' || !import.meta.env.VITE_LOCAL_DEV_PASSWORD) return false
   try {
@@ -83,8 +85,9 @@ export default function App() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
-  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ singleton: true, note: defaultPaymentNote, qr_image_path: null, updated_at: '', updated_by: null })
+  const [paymentSettings, setPaymentSettings] = useState<PaymentSettings>({ singleton: true, note: defaultPaymentNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null })
   const [paymentQrUrl, setPaymentQrUrl] = useState(fallbackPaymentQrUrl)
+  const [installmentPaymentQrUrl, setInstallmentPaymentQrUrl] = useState('')
   const [plans, setPlans] = useState<InstallmentPlan[]>([])
   const [tab, setTab] = useState<Tab>(() => tabFromUrl(new URL(window.location.href)))
   const [showPayCard, setShowPayCard] = useState(false)
@@ -144,8 +147,9 @@ export default function App() {
     const user = sessionData.session?.user
     if (!user) {
       setProfile(null)
-      setPaymentSettings({ singleton: true, note: defaultPaymentNote, qr_image_path: null, updated_at: '', updated_by: null })
+      setPaymentSettings({ singleton: true, note: defaultPaymentNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null })
       setPaymentQrUrl(fallbackPaymentQrUrl)
+      setInstallmentPaymentQrUrl('')
       setLoading(false)
       return
     }
@@ -161,7 +165,7 @@ export default function App() {
       client.from('payment_allocations').select('payment_id,order_id,amount'),
       client.from('ledger_entries').select('*'),
       client.from('cycle_closings').select('*'),
-      client.from('payment_settings').select('singleton,note,qr_image_path,updated_at,updated_by').eq('singleton', true).maybeSingle(),
+      client.from('payment_settings').select('singleton,note,qr_image_path,installment_qr_image_path,updated_at,updated_by').eq('singleton', true).maybeSingle(),
     ])
 
     const profileResult = await profilePromise
@@ -178,6 +182,7 @@ export default function App() {
       singleton: true,
       note: defaultPaymentNote,
       qr_image_path: null,
+      installment_qr_image_path: null,
       updated_at: '',
       updated_by: null,
     }
@@ -187,6 +192,12 @@ export default function App() {
       setPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
     } else {
       setPaymentQrUrl(fallbackPaymentQrUrl)
+    }
+    if (loadedPaymentSettings.installment_qr_image_path) {
+      const { data: signedQr, error: signedQrError } = await client.storage.from('payment-qr').createSignedUrl(loadedPaymentSettings.installment_qr_image_path, 60 * 60 * 24)
+      setInstallmentPaymentQrUrl(signedQrError ? '' : (signedQr?.signedUrl ?? ''))
+    } else {
+      setInstallmentPaymentQrUrl('')
     }
     setAccounts((accountResult.data ?? []) as Profile[])
     setOrders((orderResult.data ?? []) as Order[])
@@ -321,10 +332,10 @@ export default function App() {
       <div className="main-area">
         {tab === 'overview' && <Overview outstanding={outstanding} plans={plans} isAdmin={isAdmin} onPay={() => setShowPayCard(true)} />}
       {tab === 'orders' && <OrdersPanel orders={orders} allocations={allocations} cycles={cycles} isAdmin={isAdmin} onUpdated={loadData} />}
-        {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} onUpdated={loadData} />}
+        {tab === 'installments' && <InstallmentsPanel plans={plans} isAdmin={isAdmin} qrImageUrl={installmentPaymentQrUrl} onUpdated={loadData} />}
         {tab === 'reports' && <ReportsPanel orders={orders} payments={payments} plans={plans} cycles={cycles} ledgerEntries={ledgerEntries} closings={closings} selected={reportCycle} onSelect={setReportCycle} onUpdated={loadData} isAdmin={isAdmin} />}
         {tab === 'accounts' && isAdmin && <AccountsPanel accounts={accounts} />}
-        {tab === 'payment-settings' && isAdmin && <PaymentSettingsPanel settings={paymentSettings} currentImageUrl={paymentQrUrl} onSaved={loadData} />}
+        {tab === 'payment-settings' && isAdmin && <PaymentSettingsPanel settings={paymentSettings} currentImageUrl={paymentQrUrl} currentInstallmentImageUrl={installmentPaymentQrUrl} onSaved={loadData} />}
       </div>
 
       {showPayCard && <PaymentCard imageUrl={paymentQrUrl} note={paymentSettings.note} onClose={() => setShowPayCard(false)} />}
@@ -441,13 +452,18 @@ function AccountsPanel({ accounts }: { accounts: Profile[] }) {
   return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Quản Lý Tài Khoản</h2></div></div><p className="hint">Tạo liên kết dùng một lần để người dùng đặt mật khẩu mới. Liên kết không gửi email và hết hạn sau 5 phút.</p><section className="list-card">{accounts.length === 0 ? <p className="empty-state">Chưa có tài khoản nào.</p> : accounts.map((account) => <article className="account-row" key={account.id}><div className="order-details"><strong>{account.full_name}</strong><span>{account.email} · {account.role === 'admin' ? 'Admin' : 'Người Xem'}</span></div>{account.role === 'viewer' && <button className="secondary-button" onClick={() => setResetting(account)}>Đặt Lại Mật Khẩu</button>}</article>)}</section>{resetting && <RecoveryLinkDialog account={resetting} onClose={() => setResetting(null)} />}</section>
 }
 
-function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings: PaymentSettings; currentImageUrl: string; onSaved: () => Promise<void> }) {
+function PaymentSettingsPanel({ settings, currentImageUrl, currentInstallmentImageUrl, onSaved }: { settings: PaymentSettings; currentImageUrl: string; currentInstallmentImageUrl: string; onSaved: () => Promise<void> }) {
   const [note, setNote] = useState(settings.note)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [pendingUploadedPath, setPendingUploadedPath] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [installmentImageFile, setInstallmentImageFile] = useState<File | null>(null)
+  const [pendingInstallmentUploadedPath, setPendingInstallmentUploadedPath] = useState<string | null>(null)
+  const [installmentPreviewUrl, setInstallmentPreviewUrl] = useState('')
+  const [installmentError, setInstallmentError] = useState('')
+  const [installmentBusy, setInstallmentBusy] = useState(false)
 
   useEffect(() => {
     if (!imageFile) {
@@ -458,6 +474,16 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
     setPreviewUrl(objectUrl)
     return () => URL.revokeObjectURL(objectUrl)
   }, [imageFile])
+
+  useEffect(() => {
+    if (!installmentImageFile) {
+      setInstallmentPreviewUrl('')
+      return
+    }
+    const objectUrl = URL.createObjectURL(installmentImageFile)
+    setInstallmentPreviewUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [installmentImageFile])
 
   const selectImage = async (file: File | undefined) => {
     setError('')
@@ -545,6 +571,81 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
     setBusy(false)
   }
 
+  const selectInstallmentImage = async (file: File | undefined) => {
+    setInstallmentError('')
+    setPendingInstallmentUploadedPath(null)
+    if (!file) {
+      setInstallmentImageFile(null)
+      return
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setInstallmentImageFile(null)
+      setInstallmentError('Chỉ hỗ trợ ảnh JPEG, PNG hoặc WebP.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setInstallmentImageFile(null)
+      setInstallmentError('Ảnh QR không được vượt quá 2 MB.')
+      return
+    }
+    try {
+      const image = await createImageBitmap(file)
+      const isReadable = image.width >= 128 && image.height >= 128
+      image.close()
+      if (!isReadable) {
+        setInstallmentImageFile(null)
+        setInstallmentError('Ảnh quá nhỏ để hiển thị rõ. Hãy chọn ảnh có chiều rộng và cao tối thiểu 128 px.')
+        return
+      }
+    } catch {
+      setInstallmentImageFile(null)
+      setInstallmentError('Không đọc được ảnh này. Hãy chọn một tệp ảnh hợp lệ.')
+      return
+    }
+    setInstallmentImageFile(file)
+  }
+
+  const saveInstallmentSettings = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supabase) return setInstallmentError('Supabase chưa được cấu hình.')
+    setInstallmentBusy(true)
+    setInstallmentError('')
+    let qrImagePath = pendingInstallmentUploadedPath ?? settings.installment_qr_image_path
+    if (installmentImageFile && !pendingInstallmentUploadedPath) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      const userId = sessionData.session?.user.id
+      if (sessionError || !userId) {
+        setInstallmentBusy(false)
+        return setInstallmentError('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.')
+      }
+      const extensionByType: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+      const imagePath = `${userId}/${crypto.randomUUID()}.${extensionByType[installmentImageFile.type]}`
+      const { error: uploadError } = await supabase.storage.from('payment-qr').upload(imagePath, installmentImageFile, {
+        cacheControl: '31536000',
+        contentType: installmentImageFile.type,
+        upsert: false,
+      })
+      if (uploadError) {
+        setInstallmentBusy(false)
+        return setInstallmentError('Không tải được ảnh QR. Hãy kiểm tra quyền truy cập và thử lại.')
+      }
+      qrImagePath = imagePath
+      setPendingInstallmentUploadedPath(imagePath)
+    }
+
+    const { error: saveError } = await supabase.rpc('update_installment_payment_settings', {
+      p_qr_image_path: qrImagePath,
+    })
+    if (saveError) {
+      setInstallmentBusy(false)
+      return setInstallmentError('Không lưu được thiết lập QR trả góp. Hãy thử lại.')
+    }
+    await onSaved()
+    setInstallmentImageFile(null)
+    setPendingInstallmentUploadedPath(null)
+    setInstallmentBusy(false)
+  }
+
   return <section className="content-stack payment-settings-panel">
     <div className="page-heading"><div><p className="eyebrow">Admin</p><h2>Thiết Lập Thanh Toán</h2></div></div>
     <section className="section-card">
@@ -555,6 +656,17 @@ function PaymentSettingsPanel({ settings, currentImageUrl, onSaved }: { settings
         <label><span className="label-title"><span className="label-copy">Ghi Chú Thanh Toán</span><span className="required-marker" aria-hidden="true">*</span></span><textarea required maxLength={300} rows={3} value={note} onChange={(event) => setNote(event.target.value)} /></label>
         {error && <p className="form-message" role="alert">{error}</p>}
         <button className="primary-button" type="submit" disabled={busy}>{busy ? 'Đang Lưu…' : 'Lưu Thay Đổi'}</button>
+      </form>
+    </section>
+    <section className="section-card installment-payment-settings">
+      <div className="section-heading"><div><p className="overview-cycle-label">Khoản riêng</p><h2>QR Thanh Toán Trả Góp</h2></div></div>
+      <form className="form-stack" onSubmit={saveInstallmentSettings}>
+        <label className="payment-image-label">Ảnh QR Trả Góp<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => void selectInstallmentImage(event.target.files?.[0])} /></label>
+        <p className="hint">Ảnh này chỉ hiển thị trong tab Trả Góp cho Viewer. Ảnh được giữ nguyên như đã tải lên; hệ thống không giải mã hay xác minh nơi nhận tiền.</p>
+        {(installmentPreviewUrl || currentInstallmentImageUrl) && <img className="payment-settings-preview" src={installmentPreviewUrl || currentInstallmentImageUrl} alt="Xem trước ảnh QR thanh toán trả góp" />}
+        <div className="installment-transfer-details" aria-label="Thông tin chuyển khoản trả góp, chỉ xem"><div><span>Số tiền mặc định</span><strong>{formatVnd(installmentTransferAmount)}</strong></div><div><span>Nội dung chuyển khoản</span><strong>{installmentTransferContent}</strong></div></div>
+        {installmentError && <p className="form-message" role="alert">{installmentError}</p>}
+        <button className="primary-button" type="submit" disabled={installmentBusy}>{installmentBusy ? 'Đang Lưu…' : 'Lưu QR Trả Góp'}</button>
       </form>
     </section>
   </section>
@@ -1034,9 +1146,10 @@ function OrderDialog({ order, lockFinancialFields = false, onClose, onSaved }: {
     <p className="required-note"><span aria-hidden="true">*</span> Trường bắt buộc</p>{lockFinancialFields && <p className="hint">Đơn đã có phân bổ thanh toán nên ngày đặt và số tiền được khóa để giữ đúng lịch sử.</p>}{error && <p className="form-message">{error}</p>}<button className="primary-button" type="submit">Lưu Đơn Hàng</button></form></Dialog>
 }
 
-function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPlan[]; isAdmin: boolean; onUpdated: () => Promise<void> }) {
+function InstallmentsPanel({ plans, isAdmin, qrImageUrl, onUpdated }: { plans: InstallmentPlan[]; isAdmin: boolean; qrImageUrl: string; onUpdated: () => Promise<void> }) {
   const [showCreate, setShowCreate] = useState(false)
   const [showPayment, setShowPayment] = useState<string | null>(null)
+  const [showPaymentQr, setShowPaymentQr] = useState(false)
   const [payments, setPayments] = useState<any[]>([])
   const [formError, setFormError] = useState('')
   useEffect(() => { void supabase?.from('installment_payments').select('*').order('paid_at',{ascending:false}).then(({data})=>setPayments(data??[])) }, [plans])
@@ -1052,9 +1165,10 @@ function InstallmentsPanel({ plans, isAdmin, onUpdated }: { plans: InstallmentPl
     if(amount>remaining)return setFormError(`Số tiền góp vượt quá số còn lại ${formatVnd(remaining)}.`)
     const {error}=await supabase.rpc('record_installment_payment',{p_plan_id:showPayment,p_amount:amount,p_paid_at:paid_at,p_note:note||null}); if(error)setFormError('Không thể ghi nhận lần góp. Hãy kiểm tra số tiền và số dư còn lại.'); else{setShowPayment(null);setFormError('');await onUpdated()}
   }
-  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Khoản riêng</p><h2>Trả Góp</h2></div>{isAdmin&&<button className="primary-button compact" onClick={()=>setShowCreate(true)}><Plus size={18}/>Tạo Khoản Trả Góp</button>}</div><section className="list-card">{plans.length === 0 ? <p className="empty-state">Chưa có khoản trả góp.</p> : plans.map((plan) => { const remaining = plan.total_amount - plan.total_paid; const progress = Math.min(100, Math.round((plan.total_paid / plan.total_amount) * 100)); return <article className="installment-block" key={plan.id}><div className="installment-row"><div><strong>{plan.name}</strong><span>Đã góp {formatVnd(plan.total_paid)} / {formatVnd(plan.total_amount)}</span><div className="progress"><i style={{ width: `${progress}%` }} /></div></div><strong>{formatVnd(remaining)}<small>còn lại</small></strong></div>{isAdmin&&<button className="secondary-button" onClick={()=>setShowPayment(plan.id)}>Ghi Nhận Lần Góp</button>}<div className="payment-history">{payments.filter(p=>p.plan_id===plan.id).map(p=><div key={p.id}><span>{formatDate(p.paid_at)} · {p.note||'Đã góp'}</span><strong>{formatVnd(p.amount)}</strong></div>)}</div></article>})}</section>
+  return <section className="content-stack"><div className="page-heading"><div><p className="eyebrow">Khoản riêng</p><h2>Trả Góp</h2></div><div className="installment-page-actions">{!isAdmin && plans.length > 0 && <button className="primary-button compact" type="button" onClick={() => setShowPaymentQr(true)}><QrCode size={17} aria-hidden="true" />Thanh Toán Trả Góp</button>}{isAdmin&&<button className="primary-button compact" onClick={()=>setShowCreate(true)}><Plus size={18}/>Tạo Khoản Trả Góp</button>}</div></div><section className="list-card">{plans.length === 0 ? <p className="empty-state">Chưa có khoản trả góp.</p> : plans.map((plan) => { const remaining = plan.total_amount - plan.total_paid; const progress = Math.min(100, Math.round((plan.total_paid / plan.total_amount) * 100)); return <article className="installment-block" key={plan.id}><div className="installment-row"><div><strong>{plan.name}</strong><span>Đã góp {formatVnd(plan.total_paid)} / {formatVnd(plan.total_amount)}</span><div className="progress"><i style={{ width: `${progress}%` }} /></div></div><strong>{formatVnd(remaining)}<small>còn lại</small></strong></div>{isAdmin&&<button className="secondary-button" onClick={()=>setShowPayment(plan.id)}>Ghi Nhận Lần Góp</button>}<div className="payment-history">{payments.filter(p=>p.plan_id===plan.id).map(p=><div key={p.id}><span>{formatDate(p.paid_at)} · {p.note||'Đã góp'}</span><strong>{formatVnd(p.amount)}</strong></div>)}</div></article>})}</section>
     {showCreate&&<Dialog title="Tạo Khoản Trả Góp" onClose={()=>{setShowCreate(false);setFormError('')}}><form className="form-stack" onSubmit={addPlan}><label>Tên Khoản<input required name="name"/></label><label>Tổng Tiền (VND)<input required name="amount" inputMode="numeric"/></label>{formError&&<p className="form-message" role="alert">{formError}</p>}<button className="primary-button">Tạo Khoản Trả Góp</button></form></Dialog>}
     {showPayment&&<Dialog title="Ghi Nhận Lần Góp" onClose={()=>{setShowPayment(null);setFormError('')}}><form className="form-stack" onSubmit={addPayment}><label>Ngày Góp<input required type="date" name="paid_at" defaultValue={today}/></label><label>Số Tiền (VND)<input required name="amount" inputMode="numeric"/></label><label>Ghi Chú<input name="note"/></label>{formError&&<p className="form-message" role="alert">{formError}</p>}<button className="primary-button">Lưu Lần Góp</button></form></Dialog>}
+    {showPaymentQr&&<PaymentCard imageUrl={qrImageUrl} note="Sau khi chuyển khoản xong, hãy thông báo cho bé Kịt để xác nhận thanh toán nhé 😘" transferAmount={installmentTransferAmount} transferContent={installmentTransferContent} title="Thanh Toán Trả Góp" onClose={()=>setShowPaymentQr(false)} />}
   </section>
 }
 
@@ -1079,7 +1193,7 @@ function ReportsPanel({orders,payments,plans,cycles,ledgerEntries,closings,selec
   return <><section className="content-stack report-panel"><div className="page-heading"><div><p className="eyebrow">Đối soát</p><h2>Báo cáo kỳ</h2></div><div className="report-actions"><button className="secondary-button" onClick={exportCsv}>Xuất Excel</button><button className="secondary-button" onClick={pdf}>Lưu PDF</button></div></div>{cycles.length===0?<section className="list-card empty-state">Chưa có kỳ sổ nào.</section>:<><label>Kỳ sổ<select value={cycle?.id??''} onChange={e=>onSelect(e.target.value)}>{cycles.map(c=><option key={c.id} value={c.id}>{cycleDisplay(c)} · {c.status==='closed'?'Đã khóa':'Đang mở'}</option>)}</select></label><section className="metric-grid"><article className="metric"><span>Dư đầu kỳ</span><strong>{formatVnd(opening)}</strong></article><article className="metric"><span>Đơn phát sinh</span><strong>{formatVnd(purchases)}</strong></article><article className="metric"><span>Đã thanh toán trong kỳ</span><strong>{formatVnd(paid)}</strong></article><article className="metric"><span>Còn lại theo kỳ</span><strong>{formatVnd(ending)}</strong></article></section><section className="list-card report-orders">{cycleOrders.length?cycleOrders.map(o=><div className={`report-line ${o.deleted_at?'is-deleted':''}`} key={o.id}><span>{formatDate(o.placed_at)} · {o.description}{o.deleted_at?' · Đã Xóa':''}</span><strong>{formatVnd(o.amount)}</strong></div>):<p className="empty-state">Kỳ này chưa có đơn hàng.</p>}{isAdmin&&<button className="primary-button compact" onClick={()=>void toggleClose()}>{cycle.status==='closed'?'Mở khóa kỳ':'Khóa sổ kỳ này'}</button>}{cycle.status==='closed'&&<p className="hint">Kỳ đã khóa. Báo cáo đọc số dư đã lưu tại thời điểm khóa.</p>}</section></>}</section>{notice&&<NoticeDialog message={notice} onClose={()=>setNotice('')}/>}</>
 }
 
-function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: string; onClose: () => void }) {
+function PaymentCard({ imageUrl, note, transferAmount, transferContent, title = 'Thanh toán', onClose }: { imageUrl: string; note: string; transferAmount?: number; transferContent?: string; title?: string; onClose: () => void }) {
   const [downloading, setDownloading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
 
@@ -1107,9 +1221,10 @@ function PaymentCard({ imageUrl, note, onClose }: { imageUrl: string; note: stri
     }
   }
 
-  return <Dialog title="Thanh toán" onClose={onClose}>
+  return <Dialog title={title} onClose={onClose}>
     <div className="payment-card">
-      {imageUrl ? <img src={imageUrl} alt="Ảnh QR thanh toán" /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {imageUrl ? <img src={imageUrl} alt={transferAmount !== undefined ? 'Ảnh QR thanh toán trả góp' : 'Ảnh QR thanh toán'} /> : <p className="form-message">Chưa có ảnh QR thanh toán.</p>}
+      {transferAmount !== undefined && <div className="installment-transfer-details" aria-label="Thông tin chuyển khoản, chỉ xem"><div><span>Số tiền</span><strong>{formatVnd(transferAmount)}</strong></div><div><span>Nội dung chuyển khoản</span><strong>{transferContent}</strong></div></div>}
       {imageUrl && <div className="payment-qr-actions"><button className="secondary-button" type="button" onClick={() => void downloadQr()} disabled={downloading}><Download size={17} aria-hidden="true" />{downloading ? 'Đang tải ảnh QR…' : 'Tải ảnh QR'}</button><p>Trên điện thoại, lưu ảnh rồi chọn ảnh đó trong mục quét QR của ứng dụng ngân hàng.</p></div>}
       {downloadError && <p className="form-message" role="alert">{downloadError} <a href={imageUrl} target="_blank" rel="noopener noreferrer">Mở ảnh QR trong tab mới</a></p>}
       <p className="payment-note">{note}</p>

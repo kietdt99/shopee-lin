@@ -4,6 +4,7 @@
 
 ### Added
 
+- Add an Admin-uploaded installment QR and Viewer payment dialog showing its fixed 1,800,000 VND amount and `be Lin tra gop s25u` transfer content.
 - Show paid and unpaid totals for the applied order billing-cycle selection, with an explicit cycle context.
 - Add a password visibility control and a full-screen loading state during sign-in and app initialization.
 - Add unit coverage for billing-cycle order summaries and expand cross-browser auth, filter, search, and reduced-motion checks.

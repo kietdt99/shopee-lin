@@ -6,7 +6,7 @@ Baseline: `origin/release/v0.1.2` at `32e4f62`. Candidate source and QA are inte
 
 ## Current readiness — 2026-11-23
 
-The local candidate is internally integrated and its automated release gates pass: three stable Chrome/Edge full-suite runs, 37/37 unit tests, production build and bundle budgets, plus `git diff --check`. Independent QA reran unit (37/37), full E2E (400 passed, 8 intentional skips), build, and bundle checks on `26ad48b`. The local API/RLS baseline passed again on 2026-11-23 from the configured user worktree. Read-only Supabase MCP checks confirmed all 11 checked-in migration versions appear in hosted history, RLS is enabled on all 10 public application tables, and captured current policy/function ACL metadata. No production DB writes or migration commands were run; v0.1.3 has no DB diff.
+The original candidate was internally integrated and its prior automated release gates passed. The separate installment-payment QR hotfix is now in development on `feature/installment-payment-qr`; it adds one migration and has not yet been integrated or re-verified. Read-only Supabase MCP checks confirmed the previously checked migration versions appear in hosted history, RLS is enabled on all 10 public application tables, and captured current policy/function ACL metadata. No production DB writes or migration commands were run.
 
 Production release remains blocked on these checks:
 
@@ -14,6 +14,7 @@ Production release remains blocked on these checks:
 - Hosted Admin/Viewer Auth and session-return smoke; browser tests currently mock Auth.
 - Remaining local API/RLS and Storage authorization checks, financial invariant and concurrency checks. Hosted migration versions and RLS metadata were inspected read-only; full function-body parity and live financial behavior have not been proven.
 - A production-safe fixture plan and hosted product smoke, followed by Pages/Chrome/Edge smoke and the external PR/CI review.
+- Review and apply the new installment QR migration only after release integration and DB safety review; verify Admin-only update authorization and Viewer read/download behavior.
 
 No production mutation, release branch cut, remote push, or deployment has occurred. These checks must be completed before production release; the local Supabase stack was unavailable when the API probe was last attempted from a clean worktree, and no local activation/recovery link test was run.
 

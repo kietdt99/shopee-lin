@@ -178,3 +178,7 @@ Expose payment display settings in a dedicated Admin-only **Thanh Toán** tab. A
 ## 2026-11-22 — Scan payment QR from the same phone
 
 Offer a **Tải ảnh QR** action beside the Viewer payment QR. Explain that the Viewer can save it and select it from the banking app's QR image/library picker. Keep the original full QR image; do not try to decode or modify it. If the browser cannot fetch the image for download, show a designed inline error with a second-device fallback.
+
+## 2026-11-23 — Separate QR for installment payment
+
+Keep the installment QR separate from ordinary Shopee debt payment. Admin can upload/replace the installment QR image only; the QR's displayed transfer amount (1,800,000 VND) and content (`be Lin tra gop s25u`) are fixed read-only information, not editable settings and not decoded from the image. In the Viewer installment page, show a dedicated payment action and a dialog with the complete QR, those read-only values, and the save-to-phone guidance. Reuse private `payment-qr` storage and enforce Admin writes through an authenticated Admin-only RPC.

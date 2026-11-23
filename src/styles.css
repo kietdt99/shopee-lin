@@ -157,6 +157,13 @@ textarea { width: 100%; min-height: 96px; border: 1px solid #d6d3d1; border-radi
 .payment-note { width: 100%; max-width: 44ch; margin: 12px auto 0; padding: 13px clamp(12px, 3vw, 18px); border-radius: 12px; color: #85330e; background: #fff2ed; line-height: 1.45; text-wrap: pretty; }
 .payment-image-label input { min-height: auto; padding: 10px; }
 .payment-settings-preview { display: block; width: auto; height: auto; max-width: min(100%, 360px); max-height: 420px; margin: 0 auto; object-fit: contain; border: 1px solid #e7e5e4; border-radius: 14px; }
+.installment-payment-settings .section-heading { margin-bottom: 18px; }
+.installment-page-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.installment-transfer-details { display: grid; gap: 10px; width: 100%; max-width: 420px; margin: 4px auto; padding: 14px 16px; border: 1px solid #f3d4c9; border-radius: 12px; background: #fff8f5; }
+.installment-transfer-details > div { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.installment-transfer-details span { color: #716b67; font-size: .9rem; }
+.installment-transfer-details strong { color: #302b28; text-align: right; overflow-wrap: anywhere; }
+.payment-card .installment-transfer-details { margin-top: 12px; }
 .order-actions, .report-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .secondary-button { border: 1px solid #dedad7; border-radius: 10px; padding: 10px 12px; background: #fff; color: #4b4541; font-weight: 700; }
 .primary-button:active:not(:disabled), .secondary-button:active:not(:disabled), .light-button:active:not(:disabled), .icon-button:active:not(:disabled), .tab:active:not(:disabled), .sidebar-action:active:not(:disabled) { transform: scale(.985); }
@@ -171,6 +178,11 @@ textarea { width: 100%; min-height: 96px; border: 1px solid #d6d3d1; border-radi
 select { border: 1px solid #d6d3d1; border-radius: 11px; padding: 12px; background: #fff; }
 .report-panel select { width: 100%; min-width: 0; }
 @media print { body { background: #fff; } .sidebar, .topbar, .tabs, .report-actions, .primary-button, .secondary-button, label { display: none !important; } .app-shell { display: block; width: auto; max-width: none; padding: 0; } .report-orders, .metric { box-shadow: none; break-inside: avoid; } }
+@media (max-width: 600px) {
+  .installment-page-actions { width: 100%; justify-content: stretch; }
+  .installment-page-actions > button { width: 100%; }
+  .installment-payment-settings .section-heading { align-items: flex-start; }
+}
 @keyframes feedback-in { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes loading-spin { to { transform: rotate(360deg); } }
 @keyframes dialog-backdrop-in { from { opacity: 0; } to { opacity: 1; } }

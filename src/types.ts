@@ -32,6 +32,7 @@ export type PaymentSettings = {
   singleton: boolean
   note: string
   qr_image_path: string | null
+  installment_qr_image_path: string | null
   updated_at: string
   updated_by: string | null
 }
