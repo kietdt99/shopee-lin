@@ -414,6 +414,48 @@ test('Viewer sees separate installment QR with fixed transfer details and phone-
   await expectNoHorizontalOverflow()
 })
 
+test('direct Orders restore waits for billing cycles before mounting the default period filter', async ({ page }) => {
+  const latestCycle: MockCycle = { id: 'cycle-latest-2026', label: '11.2026', starts_on: '2026-10-21', ends_on: '2026-11-20', opening_balance: 0, status: 'open' }
+  const priorCycle: MockCycle = { id: 'cycle-prior-2026', label: '10.2026', starts_on: '2026-09-21', ends_on: '2026-10-20', opening_balance: 0, status: 'closed' }
+  await mockSupabase(page, 'viewer', {
+    cycles: [priorCycle, latestCycle],
+    orders: [
+      { id: 'order-latest-cycle', description: 'Order in latest cycle', placed_at: '2026-11-10', amount: 1000, status: 'unpaid', billing_cycle_id: latestCycle.id },
+      { id: 'order-prior-cycle', description: 'Order in prior cycle', placed_at: '2026-10-10', amount: 2000, status: 'unpaid', billing_cycle_id: priorCycle.id },
+    ],
+    responseDelays: { billing_cycles: 700 },
+  })
+  await signIn(page, 'viewer')
+  await page.goto('/?tab=orders')
+
+  await expect(page.getByRole('status', { name: 'Đang tải ShopeeLin' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Đơn Hàng' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Đơn hàng' })).toBeVisible()
+  await expect(page.getByText('Order in latest cycle')).toBeVisible()
+  await expect(page.getByText('Order in prior cycle')).toHaveCount(0)
+  await expect(page.locator('.cycle-filter-select > summary')).toContainText('11.2026')
+})
+
+test('direct Payment Settings restore waits for persisted settings before initializing editable note', async ({ page }) => {
+  const savedNote = 'Nội dung thanh toán riêng đã lưu trước đó'
+  const mock = await mockSupabase(page, 'admin', {
+    paymentSettings: { singleton: true, note: savedNote, qr_image_path: null, installment_qr_image_path: null, updated_at: '', updated_by: null },
+    responseDelays: { payment_settings: 700 },
+  })
+  await signIn(page, 'admin')
+  await page.goto('/?tab=payment-settings')
+
+  await expect(page.getByRole('status', { name: 'Đang tải ShopeeLin' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Thiết Lập Thanh Toán' })).toHaveCount(0)
+  const noteField = page.getByLabel('Ghi Chú Thanh Toán')
+  await expect(noteField).toHaveValue(savedNote)
+  await page.getByRole('button', { name: 'Lưu Thay Đổi' }).click()
+  await expect.poll(() => mock.requests.some((request) => request.path === '/rest/v1/rpc/update_payment_settings')).toBe(true)
+  const update = mock.requests.find((request) => request.path === '/rest/v1/rpc/update_payment_settings')
+  expect(update?.body.p_note).toBe(savedNote)
+})
+
 test('Admin payment settings reject unsupported and oversized image files before upload', async ({ page }) => {
   const mock = await mockSupabase(page, 'admin')
   await signIn(page, 'admin')

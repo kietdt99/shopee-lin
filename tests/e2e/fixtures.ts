@@ -40,6 +40,7 @@ type MockSeed = {
   installmentSummary?: MockInstallmentSummary[]
   installmentPayments?: MockInstallmentPayment[]
   paymentSettings?: MockPaymentSettings
+  responseDelays?: Record<string, number>
 }
 
 const userIds: Record<TestRole, string> = {
@@ -144,6 +145,8 @@ export async function mockSupabase(page: Page, role: TestRole, seed: MockSeed = 
 
     if (url.pathname.startsWith('/rest/v1/') && !url.pathname.includes('/rpc/')) {
       const table = url.pathname.split('/').at(-1)
+      const delayMs = method === 'GET' ? (seed.responseDelays?.[table ?? ''] ?? 0) : 0
+      if (delayMs > 0) await new Promise((resolve) => setTimeout(resolve, delayMs))
       let data: unknown = []
       if (table === 'profiles') {
         const currentProfiles = state.profiles
