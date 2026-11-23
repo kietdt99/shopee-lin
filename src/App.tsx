@@ -305,7 +305,9 @@ export default function App() {
   }
 
   if (!isSupabaseConfigured) return <ConfigurationNotice />
-  if (loading && !profile) return <LoadingScreen />
+  // Do not mount data-dependent panels until the initial profile and app data
+  // have both loaded. Several panels initialize local state from these props.
+  if (loading) return <LoadingScreen />
   if (passwordSetup) return <PasswordSetup email={email} password={password} message={message} onPasswordChange={setPassword} onSubmit={updatePassword} />
   if (!profile) return <Login email={email} password={password} message={message} localAccounts={localLoginAccounts} onLoginAsLocal={(account) => void signInAsLocal(account)} onEmailChange={setEmail} onPasswordChange={setPassword} onSubmit={signIn} onSetup={startPasswordSetup} onReset={startPasswordReset} />
 
