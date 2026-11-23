@@ -2,19 +2,21 @@
 
 Status: draft backlog, updated 2026-11-23. This plan is the working scope for v0.1.3; it does not authorize production changes or deployment. Items marked **Needs decision** are proposals, not committed product requirements.
 
-Baseline: `origin/release/v0.1.2` at `32e4f62`. Candidate source and QA are integrated on the local `main` worktree at `1aba827`; the original shared worktree remains untouched. Final candidate Playwright stability passed three consecutive full runs: 400 passed / 8 intentional mobile performance skips per run, zero retries, on port bases 5473, 5573, and 5673. This is local/mock evidence only, not hosted Auth or physical-device verification. No release branch, push, production migration, or deployment has been made.
+Baseline: `origin/release/v0.1.2` at `32e4f62`. Candidate integration is at `ccc1548` on the dedicated `feature/v0.1.3-release-candidate` worktree; the original shared worktree remains untouched. Before the installment-QR hotfix, Playwright stability passed three consecutive full runs (400 passed / 8 intentional mobile performance skips per run). After integrating the corrected separate installment QR, the full suite passed once (412 passed / 8 intentional mobile performance skips, zero failures) across Chrome/Edge desktop, 390px/320px mobile, and QR fallback. This is local/mock evidence only, not hosted Auth or physical-device verification. No release branch, production migration, or deployment has been made.
 
 ## Current readiness — 2026-11-23
 
-The original candidate was internally integrated and its prior automated release gates passed. The separate installment-payment QR hotfix is now in development on `feature/installment-payment-qr`; it adds one migration and has not yet been integrated or re-verified. Read-only Supabase MCP checks confirmed the previously checked migration versions appear in hosted history, RLS is enabled on all 10 public application tables, and captured current policy/function ACL metadata. No production DB writes or migration commands were run.
+The installment-payment QR hotfix is integrated locally: Admin uploads a separate QR; Admin and Viewer see the QR's fixed 1,800,000 VND amount and `be Lin tra gop s25u` content as read-only. The QR regression tests passed at desktop and mobile sizes. `pnpm test:unit` passed 37/37; `pnpm test:bundle` passed with 124.0 KiB JS gzip / 250 KiB budget and 6.8 KiB CSS gzip / 50 KiB budget; `git diff --check` passed. The migration adds a separate QR path and an Admin-guarded RPC. Read-only Supabase MCP checks from before this hotfix confirmed the previously checked hosted migration history, RLS on all 10 public app tables, and current policy/function ACL metadata; they do not verify this new RPC or column.
+
+The Docker engine and local Supabase containers are running, but the local migration ledger is not aligned: it reports earlier checked-in migrations as unapplied, including payment settings. No migration was applied locally or remotely. Do not run a broad `db push` until the local schema/history discrepancy is reconciled and the new migration is validated in an isolated environment.
 
 Production release remains blocked on these checks:
 
 - Physical S23 Ultra review of the current candidate screens, plus saving the Viewer QR and selecting it from a banking app on that same phone.
 - Hosted Admin/Viewer Auth and session-return smoke; browser tests currently mock Auth.
-- Remaining local API/RLS and Storage authorization checks, financial invariant and concurrency checks. Hosted migration versions and RLS metadata were inspected read-only; full function-body parity and live financial behavior have not been proven.
+- Validate the new migration and Admin/Viewer Storage/RPC authorization against an isolated local or staging Supabase database. The browser tests mock Supabase and cannot prove database enforcement. Reconcile the local migration ledger before running migration commands.
 - A production-safe fixture plan and hosted product smoke, followed by Pages/Chrome/Edge smoke and the external PR/CI review.
-- Review and apply the new installment QR migration only after release integration and DB safety review; verify Admin-only update authorization and Viewer read/download behavior.
+- Apply the new installment QR migration only after isolated validation and deployment runbook review; production authorization for schema changes remains to be confirmed before it is applied.
 
 No production mutation, release branch cut, remote push, or deployment has occurred. These checks must be completed before production release; the local Supabase stack was unavailable when the API probe was last attempted from a clean worktree, and no local activation/recovery link test was run.
 
